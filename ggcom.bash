@@ -7,7 +7,7 @@ LIBPATH="$( cd "$(dirname "${SCRIPTPATH}/../../")" ; pwd -P )/ggcom-bash-library
 source "${LIBPATH}/varsBash.bash"
 source "${LIBPATH}/string.bash"
 ################################################################################
-source "${LIBPATH}/ip.bash"
+source "${LIBPATH}/prompt.bash"
 ################################################################################
 VERSION=201502230627
 PROGTITLE="${SCRIPTNAME} (`printf "%x" ${VERSION}`-v${VERSION})"
@@ -17,30 +17,43 @@ echo "${PROGTITLE} |";
 echo "`str_repeat - ${#PROGTITLE}`-+";
 ################################################################################
 
-#----- HOSTS FILE TARGET
-if [ -z "$2" ]; then
-	TARGET=$HOME/.ssh/known_hosts
-else
-	TARGET=${2}
-fi
-#-----/HOSTS FILE TARGET
+#----- FYI
+echo;
+echo "FYI: Right now, the only thing that this utility does is update.";
+echo "`pauseret`";
+#-----/FYI
 
-#----- HOST
-if [ -z "$1" ]; then
-	echo "Usage: ${SCRIPTNAME} host [known_hosts_file]"
-	exit;
-fi
-#----- HOST
+#----- CREATE GGCOM UPDATER
+TMPUPD=`mktemp /tmp/ggcom.XXXXXXXXX`
+chmod 700 $TMPUPD
+#-----/CREATE GGCOM UPDATER
 
-echo "Known host file  : ${TARGET}"
+#----- CREATE GGCOM MANIFEST
+read -r -d '' UPDCMDS <<EOF
 
-HOST=${1}
-HOSTIP=`host ${1} | awk '{print $4}'`
+cd "${SCRIPTPATH}/"
+echo -n "Updating : "
+pwd
+git pull
 
-echo "Nuking Host Name : ${HOST}"
-ssh-keygen -f ${TARGET} -R ${HOST} > /dev/null 2>&1
+cd "${LIBPATH}/"
+echo -n "Updating : "
+pwd
+git pull
 
-if valid_ipv4 $HOSTIP == true; then
-	echo "Nuking Host IP   : ${HOSTIP}"
-	ssh-keygen -f ${TARGET} -R ${HOSTIP} > /dev/null 2>&1
-fi
+echo
+
+echo "[Removing GGCOM updater]"
+rm -rfv "${TMPUPD}"
+
+EOF
+#-----/CREATE GGCOM MANIFEST
+
+#----- WRITE GGCOM MANIFEST TO GGCOM UPDATER
+echo "$UPDCMDS" > $TMPUPD
+#-----/WRITE GGCOM MANIFEST TO GGCOM UPDATER
+
+#----- RUN GGCOM UPDATER
+echo "[Running GGCOM updater]"
+eval $TMPUPD &
+#-----/RUN GGCOM UPDATER
