@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 ################################################################################
-source ../ggcom-bash-library/varsBash.bash
-source ../ggcom-bash-library/ip.bash
-source ../ggcom-bash-library/string.bash
+SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
+SCRIPTNAME=`basename $0`
 ################################################################################
-VERSION=201502230504
-PROGTITLE="${SCRIPTNAME} `printf "%x" ${VERSION}` (v${VERSION})"
-
+source "${SCRIPTPATH}/../ggcom-bash-library/varsBash.bash"
+source "${SCRIPTPATH}/../ggcom-bash-library/ip.bash"
+source "${SCRIPTPATH}/../ggcom-bash-library/string.bash"
+################################################################################
+VERSION=201502230627
+PROGTITLE="${SCRIPTNAME} (`printf "%x" ${VERSION}`-v${VERSION})"
+################################################################################
 echo "${PROGTITLE} |";
 #echo "`updates_check ${PROGTITLE}`"
 echo "`str_repeat - ${#PROGTITLE}`-+";
