@@ -37,7 +37,7 @@ echo "Known host file  : ${TARGET}"
 HOST=${1}
 HOSTIP=`host ${1} | awk '{print $4}'`
 
-echo "Nuking Host Name : ${HOST}"
+echo "Nuking Host Name : ${HOST} (${HOSTIP})"
 ssh-keygen -f ${TARGET} -R ${HOST} > /dev/null 2>&1
 
 if valid_ipv4 $HOSTIP == true; then
