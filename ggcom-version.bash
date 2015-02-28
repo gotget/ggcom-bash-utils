@@ -8,4 +8,4 @@
 # ggcom-version.bash /usr/bin/dfwu.py
 
 GGCOMAPP=${1-$0}
-head -n4 "$GGCOMAPP" | grep 'v[0-9]' | grep -Eo '[0-9]{1,}'
+head -n5 "$GGCOMAPP" | grep 'v[0-9]' | grep -Eo '[0-9]{1,}'
