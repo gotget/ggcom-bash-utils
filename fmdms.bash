@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201502281638
+# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201503010807
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 #
@@ -52,10 +52,11 @@ unset OPENSSLEXIST
 #-----/Variables
 
 #----- NOTICE: FINISH
+VERL=`head -n5 "$0" | grep -n 'v[0-9]' | cut -f1 -d:`
+VERP=`tail -n+"$VERL" "$0" | head -n3`
+echo "$VERP"
 echo;
-echo "FMDMS (File Mtime Directory Md5 Synchronization)";
-echo "www.GotGetLLC.com | www.opensour.cc/fmdms";
-echo;
+unset VERL VERP
 #-----/NOTICE: FINISH
 
 #----- Startup Questions
