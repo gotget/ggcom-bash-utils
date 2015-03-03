@@ -61,14 +61,14 @@ if [ -z "$2" ]; then	# STRING
 #		fi
 #	done
 
-#	echo "`hashcalc "$1" string "$strInp"`"
+#	echo "`cryptoHashCalc "$1" string "$strInp"`"
 
 # This is absolutely not the way that I want to do this, but others are experiencing similar problems with newlines in read, which provides timeouts since cat doesn't:
 # http://www.dslreports.com/forum/r28406360-Reading-from-a-pipe-in-a-bash-script-with-timeout
 
 	TMPSTRINP=`mktemp 2>/dev/null || mktemp -t 'sync'`
 	cat > $TMPSTRINP
-	echo "`hashcalc "$1" file "$TMPSTRINP"`"
+	echo "`cryptoHashCalc "$1" file "$TMPSTRINP"`"
 	rm -rf TMPSTRINP
 
 else					# FILE
@@ -78,7 +78,7 @@ else					# FILE
 		exit 1
 	fi
 
-	echo "`hashcalc "$1" file "$2"`"
+	echo "`cryptoHashCalc "$1" file "$2"`"
 
 fi
 
