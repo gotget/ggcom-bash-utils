@@ -21,13 +21,13 @@ source "${LIBPATH}/version.bash"
 source "${LIBPATH}/crypto.bash"
 ################################################################################
 
-#----- NOTICE: FINISH
+#----- NOTICE: INFO
 #echo "`getVersion $0 header`"
 #echo "SHA1/MD5: <CHECK>"
 #echo "OpenSSL: <CHECK>"
 #echo "GPG: <CHECK>"
 #echo;
-#-----/NOTICE: FINISH
+#-----/NOTICE: INFO
 
 #----- CHECK FOR HASH
 if [ -z "$1" ]; then

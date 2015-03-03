@@ -25,10 +25,10 @@ source "${LIBPATH}/version.bash"
 # https://github.com/kdeldycke/kevin-deldycke-blog/blob/master/content/posts/file-management-commands.md
 #-----/NOTES
 
-#----- NOTICE: FINISH
+#----- NOTICE: INFO
 echo "`getVersion $0 header`"
 echo;
-#-----/NOTICE: FINISH
+#-----/NOTICE: INFO
 
 #----- CALCULATE
 pathSelect=${1-./}
