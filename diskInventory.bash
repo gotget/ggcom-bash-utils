@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+#
+# GGCOM - Bash - Utils - Disk Inventory v201503030413
+# Louis T. Getterman IV (@LTGIV)
+# www.GotGetLLC.com | www.opensour.cc/ggcom/diskInventory
+#
+# Example usage:
+# ./diskInventory.bash /tmp 5
+
 ################################################################################
 SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
 SCRIPTNAME=`basename $0`
@@ -7,14 +15,7 @@ LIBPATH="$( cd "$(dirname "${SCRIPTPATH}/../../")" ; pwd -P )/ggcom-bash-library
 source "${LIBPATH}/varsBash.bash"
 source "${LIBPATH}/string.bash"
 ################################################################################
-#
-################################################################################
-VERSION=201502231002
-PROGTITLE="${SCRIPTNAME} (`printf "%x" ${VERSION}`-v${VERSION})"
-################################################################################
-echo "${PROGTITLE} |";
-#echo "`updates_check ${PROGTITLE}`"
-echo "`str_repeat - ${#PROGTITLE}`-+";
+source "${LIBPATH}/version.bash"
 ################################################################################
 
 #----- NOTES
@@ -23,6 +24,11 @@ echo "`str_repeat - ${#PROGTITLE}`-+";
 # http://www.commandlinefu.com/commands/view/11079/find-biggest-10-files-in-current-and-subdirectories-and-sort-by-file-size
 # https://github.com/kdeldycke/kevin-deldycke-blog/blob/master/content/posts/file-management-commands.md
 #-----/NOTES
+
+#----- NOTICE: FINISH
+echo "`getVersion $0 header`"
+echo;
+#-----/NOTICE: FINISH
 
 #----- CALCULATE
 pathSelect=${1-./}
