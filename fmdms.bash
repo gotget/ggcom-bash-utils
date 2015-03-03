@@ -1,20 +1,38 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201503010807
+# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201503030934
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 #
 # Example usage:
+# export DIFFMTIME=5 DIFFSETTLETIME=2 DIFFLSTIME=10
 # fmdms.bash [~/target/path]
 
+################################################################################
+SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
+SCRIPTNAME=`basename $0`
+LIBPATH="$( cd "$(dirname "${SCRIPTPATH}/../../")" ; pwd -P )/ggcom-bash-library"
+################################################################################
+source "${LIBPATH}/varsBash.bash"
+source "${LIBPATH}/string.bash"
+################################################################################
+source "${LIBPATH}/prompt.bash"
+source "${LIBPATH}/version.bash"
+source "${LIBPATH}/crypto.bash"
+################################################################################
+
 # TODO: source hash for resuming from GGCOM data directory (~/.ggcom/) that related GGCOM utilities/libraries use
-# TODO: make $ arguments fully carry through for headless running
+# TODO: make $ arguments (or environment variables) fully carry through for headless running
 # TODO: ignore list (e.g. .DS_Store) and some additional features related to grep/pattern exclusion and rsync shenanigans
+# TODO: multiple destinations
+# TODO: reverse synchronization with persistent tunnels
+# TODO: synchronization of different files from different locations all together and using delta/patch for quicker throughput
 
 #----- Variables
-# Last X seconds of files to watch for modifications
-DIFFMTIME=10
-DIFFLSTIME=60
+# Last X seconds of files to watch for modifications at levels: modification, active differences, and routine directory checking
+: ${DIFFMTIME:=5}
+: ${DIFFSETTLETIME:=5}
+: ${DIFFLSTIME:=60}
 
 # Local Source
 TMPSRC="${1-`pwd -P`}"
@@ -42,21 +60,11 @@ ROPTS='--archive --verbose --progress --partial --delete --rsh=/usr/bin/ssh'
 
 # rsync
 RSYNCCMD=`which rsync`
-
-# openssl
-OPENSSLBIN=''
-OPENSSLEXIST='Y'
-hash openssl 2>/dev/null || { OPENSSLEXIST='N'; }
-if [ "$OPENSSLEXIST" == 'Y' ]; then OPENSSLBIN=`which openssl`; fi
-unset OPENSSLEXIST
 #-----/Variables
 
 #----- NOTICE: FINISH
-VERL=`head -n5 "$0" | grep -n 'v[0-9]' | cut -f1 -d:`
-VERP=`tail -n+"$VERL" "$0" | head -n3`
-echo "$VERP"
+echo "`getVersion $0 header`"
 echo;
-unset VERL VERP
 #-----/NOTICE: FINISH
 
 #----- Startup Questions
@@ -80,7 +88,7 @@ if [ ! -d "$INPSRC" ]; then
 fi
 
 # Source user+loc hash
-if [ ! -z "$OPENSSLBIN" ]; then HASHSRC=`echo -n "$TMPRUSER:$INPSRC" | $OPENSSLBIN md5`; fi
+HASHSRC=`cryptoHashCalc md5 string "$TMPRUSER:$INPSRC"`
 # read: do you want to resume your last session?
 
 # Destination User
@@ -194,7 +202,7 @@ echo "`date +\"%Y-%m-%d %H:%M:%S\"`: Starting constant synchronization, press 'q
 echo;
 
 LSCNT=0
-if [ ! -z "$OPENSSLBIN" ]; then LSNEW=`ls -laR "$INPSRC" | "$OPENSSLBIN" md5`; else LSNEW=''; fi
+LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
 LSOLD=$LSNEW
 TRIGGERSYNC=false
 DIFF=$DIFFMTIME
@@ -203,13 +211,11 @@ while :; do
 	START=$(date +%s)
 
 	# Hash of entire directory (for detecting deleted files)
-	if [ "$LSCNT" == "$DIFFLSTIME" ]; then
+	if [ "$LSCNT" -ge "$DIFFLSTIME" ]; then
 		LSCNT=0
-		if [ ! -z "$OPENSSLBIN" ]; then
-			LSNEW=`ls -laR "$INPSRC" | "$OPENSSLBIN" md5`
-			if [ "$LSNEW" != "$LSOLD" ]; then TRIGGERSYNC=true; fi
-			LSOLD=$LSNEW
-		fi
+		LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
+		if [ "$LSNEW" != "$LSOLD" ]; then TRIGGERSYNC=true; fi
+		LSOLD=$LSNEW
 	fi
 
 	# Changes within DIFF seconds have occurred.
@@ -221,12 +227,22 @@ while :; do
 		# Pause until all saves have completed
 		echo "`date +\"%Y-%m-%d %H:%M:%S\"`: There is a disturbance in the Force..."
 		while :; do
+
 			echo -n "`date +\"%Y-%m-%d %H:%M:%S\"`: Checking in with Obi-Wan for an assessment..."
-			TMPLSFRZ=`ls -la "$INPSRC"`
-			sleep $DIFFMTIME
-			TMPLSNOW=`ls -la "$INPSRC"`
-			if [ -z "$(diff <(echo "$TMPLSFRZ") <(echo "$TMPLSNOW"))" ]; then echo; break; else echo " Have patience, Luke.  Changes are still occurring."; fi
-		done
+
+			# Freeze snapshot of entire directory
+			TMPLSFRZ=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
+
+			# Sleep
+			sleep $DIFFSETTLETIME
+
+			# Current snapshot of entire directory
+			TMPLSNOW=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
+
+			# Determine if identical or different
+			if [ "$TMPLSFRZ" == "$TMPLSNOW" ]; then echo; break; else echo " Have patience, Luke.  Changes are still occurring."; fi
+
+		done # END WHILE LOOP
 		unset TMPLSFRZ TMPLSNOW
 
 		# List detected files and commence synchronization
@@ -243,11 +259,11 @@ while :; do
 		eval "$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR";
 		if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo "A critical error has occurred with synchronization.  Exiting." >&2; exit 1; fi
 
-		# Update hash of directory listing and reset check count
-		if [ ! -z "$OPENSSLBIN" ]; then
-			LSNEW=`ls -laR "$INPSRC" | "$OPENSSLBIN" md5`
-			LSOLD=$LSNEW
-		fi
+		# Update hash of directory listing
+		LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
+		LSOLD=$LSNEW
+		
+		# Reset check count
 		LSCNT=0
 
 		# Finished period from START (beginning of entire loop) for detecting files modified within range, and grace period.
