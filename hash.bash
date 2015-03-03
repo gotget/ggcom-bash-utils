@@ -15,9 +15,9 @@ LIBPATH="$( cd "$(dirname "${SCRIPTPATH}/../../")" ; pwd -P )/ggcom-bash-library
 ################################################################################
 source "${LIBPATH}/varsBash.bash"
 source "${LIBPATH}/string.bash"
+source "${LIBPATH}/version.bash"
 ################################################################################
 source "${LIBPATH}/prompt.bash"
-source "${LIBPATH}/version.bash"
 source "${LIBPATH}/crypto.bash"
 ################################################################################
 

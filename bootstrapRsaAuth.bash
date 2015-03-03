@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+#
+# GGCOM - Bash - Utils - Bootstrap RSA Authentication v201503031004
+# Louis T. Getterman IV (@LTGIV)
+# www.GotGetLLC.com | www.opensour.cc/ggcom/bootstraprsa
+#
+# Example usage:
+# ./bootstrapRsaAuth.bash
+
 ################################################################################
 SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
 SCRIPTNAME=`basename $0`
@@ -6,16 +14,15 @@ LIBPATH="$( cd "$(dirname "${SCRIPTPATH}/../../")" ; pwd -P )/ggcom-bash-library
 ################################################################################
 source "${LIBPATH}/varsBash.bash"
 source "${LIBPATH}/string.bash"
+source "${LIBPATH}/version.bash"
 ################################################################################
 #
 ################################################################################
-VERSION=201502231010
-PROGTITLE="${SCRIPTNAME} (`printf "%x" ${VERSION}`-v${VERSION})"
-################################################################################
-echo "${PROGTITLE} |";
-#echo "`updates_check ${PROGTITLE}`"
-echo "`str_repeat - ${#PROGTITLE}`-+";
-################################################################################
+
+#----- NOTICE: INFO
+echo "`getVersion $0 header`"
+echo;
+#-----/NOTICE: INFO
 
 #----- PROMPTS
 read -p "Username: " user;

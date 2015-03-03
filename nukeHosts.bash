@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+#
+# GGCOM - Bash - Utils - Nuke Hosts v201503031010
+# Louis T. Getterman IV (@LTGIV)
+# www.GotGetLLC.com | www.opensour.cc/ggcom/nukehosts
+#
+# Example usage:
+# ./nukehosts.bash HOST [KNOWN_HOSTS_FILE]
+
 ################################################################################
 SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
 SCRIPTNAME=`basename $0`
@@ -6,16 +14,15 @@ LIBPATH="$( cd "$(dirname "${SCRIPTPATH}/../../")" ; pwd -P )/ggcom-bash-library
 ################################################################################
 source "${LIBPATH}/varsBash.bash"
 source "${LIBPATH}/string.bash"
+source "${LIBPATH}/version.bash"
 ################################################################################
 source "${LIBPATH}/ip.bash"
 ################################################################################
-VERSION=201502230811
-PROGTITLE="${SCRIPTNAME} (`printf "%x" ${VERSION}`-v${VERSION})"
-################################################################################
-echo "${PROGTITLE} |";
-#echo "`updates_check ${PROGTITLE}`"
-echo "`str_repeat - ${#PROGTITLE}`-+";
-################################################################################
+
+#----- NOTICE: INFO
+echo "`getVersion $0 header`"
+echo;
+#-----/NOTICE: INFO
 
 #----- HOSTS FILE TARGET
 if [ -z "$2" ]; then
