@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201503030934
+# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201503060453
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 #
@@ -62,10 +62,14 @@ ROPTS='--archive --verbose --progress --partial --delete --rsh=/usr/bin/ssh'
 RSYNCCMD=`which rsync`
 #-----/Variables
 
-#----- NOTICE: FINISH
+#----- NOTICE: INFO
+echo `str_repeat - 80`
 echo "`getVersion $0 header`"
+echo `str_repeat - 80`
+echo "You can modify times, example: 'export DIFFMTIME=5 DIFFSETTLETIME=2 DIFFLSTIME=10'"
+echo `str_repeat - 80`
 echo;
-#-----/NOTICE: FINISH
+#-----/NOTICE: INFO
 
 #----- Startup Questions
 # Source directory
@@ -107,16 +111,20 @@ fi
 if [ "$INPRSERV" != 'localhost' ]; then
 	echo -n "Testing connection... "
 	echo "(if asked for a password, use ggcom-bash-utils/bootstrapRsaAuth.bash to resolve this)"
-	echo '----------'
-	REMWHOAMI=`eval ssh $INPRUSER@$INPRSERV "whoami" 2>/dev/null`
+	echo `str_repeat - 80`
+	REMWHOAMIERR=`mktemp 2>/dev/null || mktemp -t 'sync'`
+	REMWHOAMI=`eval ssh $INPRUSER@$INPRSERV "whoami" 2>"$REMWHOAMIERR"`
 	if [ "$REMWHOAMI" != "$INPRUSER" ]; then
-		echo "Remote user failure: received '$REMWHOAMI', but was expecting '$INPRUSER'.  Exiting." >&2
+		echo `cat "$REMWHOAMIERR"` >&2
+		echo "Remote user failure ($INPRUSER@$INPRSERV): received '$REMWHOAMI', but was expecting '$INPRUSER'.  Exiting." >&2
+		rm -rf $REMWHOAMIERR
 		exit 1;
 	else
 		echo "Connection successful."
 	fi
 	unset REMWHOAMI
-	echo '----------'
+	rm -rf $REMWHOAMIERR
+	echo `str_repeat - 80`
 fi
 
 # Strip trailing slash for INPSRC (to build TMPDEST)
@@ -193,7 +201,7 @@ echo "Errors     : $TMPCHECKERR"
 echo;
 echo "`date +\"%Y-%m-%d %H:%M:%S\"`: Initial synchronization started."
 eval "$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR";
-if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo "A critical error has occurred with synchronization.  Exiting." >&2; exit 1; fi
+if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo "A critical error has occurred with synchronization and has been logged ($TMPCHECKERR).  Exiting." >&2; exit 1; fi
 echo "`date +\"%Y-%m-%d %H:%M:%S\"`: Initial synchronization finished."
 #-----/Initial Sync
 
@@ -257,7 +265,7 @@ while :; do
 		echo '----------'
 
 		eval "$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR";
-		if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo "A critical error has occurred with synchronization.  Exiting." >&2; exit 1; fi
+		if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo "A critical error has occurred with synchronization and has been logged ($TMPCHECKERR).  Exiting." >&2; exit 1; fi
 
 		# Update hash of directory listing
 		LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
