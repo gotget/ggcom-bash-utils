@@ -27,13 +27,10 @@ source "${LIBPATH}/prompt.bash"
 source "${LIBPATH}/crypto.bash"
 ################################################################################
 
-#----- Variables
+#----- VARIABLES
 LENGTH=${1-40}
 FILTER=${2-'[:print:]'}
-
-OPENSSL=true
-hash openssl 2>/dev/null || { OPENSSL=false; }
-#-----/Variables
+#-----/VARIABLES
 
 #----- NOTICE: INFO
 echo `str_repeat - 80` >&2
@@ -45,11 +42,6 @@ echo '' >&2;
 #-----/NOTICE: INFO
 
 #----- MAIN
-if [ "$OPENSSL" == true ]; then
-	(openssl enc -aes-256-ctr -pass pass:"$(dd if=/dev/urandom bs=128 count=1 2>/dev/null | base64)" -nosalt < /dev/zero | env LC_CTYPE=C tr -dc $FILTER | head -c $LENGTH) 2>/dev/null
-else
-	cat /dev/urandom | env LC_CTYPE=C tr -dc $FILTER | head -c $LENGTH;
-fi
-
+echo "`cryptoGenPass "$LENGTH" "$FILTER"`"
 echo;
 #-----/MAIN
