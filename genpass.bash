@@ -5,10 +5,10 @@
 # www.GotGetLLC.com | www.opensour.cc/ggcom/genpass
 #
 # Example usage:
-# generatePassword.bash [length] [tr format]
-# generatePassword.bash 40 [:alnum:] (only letters and numbers)
-# generatePassword.bash 40 [:print:] (all characters with spaces)
-# generatePassword.bash 40 [:graph:] (all characters without spaces)
+# genpass.bash [length] [tr format]
+# genpass.bash 40 [:alnum:] (only letters and numbers)
+# genpass.bash 40 [:print:] (all characters with spaces)
+# genpass.bash 40 [:graph:] (all characters without spaces)
 #
 # Thanks:
 # http://serverfault.com/questions/6440/is-there-an-alternative-to-dev-urandom
