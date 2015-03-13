@@ -43,5 +43,4 @@ echo '' >&2;
 
 #----- MAIN
 echo "`cryptoGenPass "$LENGTH" "$FILTER"`"
-echo;
 #-----/MAIN
