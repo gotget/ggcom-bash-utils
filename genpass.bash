@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - Generate Password v201503131459
+# GGCOM - Bash - Utils - Generate Password v201503141524
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/genpass
 #
@@ -13,6 +13,7 @@
 # Thanks:
 # http://serverfault.com/questions/6440/is-there-an-alternative-to-dev-urandom
 # http://www.commandlinefu.com/commands/view/13130/generate-random-password-on-mac-os-x
+# http://askubuntu.com/questions/60712/how-do-i-quickly-encrypt-a-file-with-aes
 
 ################################################################################
 SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
@@ -35,8 +36,6 @@ FILTER=${2-'[:print:]'}
 #----- NOTICE: INFO
 echo `str_repeat - 80` >&2
 echo "`getVersion $0 header`" >&2
-echo `str_repeat - 80` >&2
-echo "OpenSSL Entropy: $OPENSSL" >&2
 echo `str_repeat - 80` >&2
 echo '' >&2;
 #-----/NOTICE: INFO
