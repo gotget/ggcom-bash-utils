@@ -10,6 +10,8 @@
 # $] ln -s ~/ggcom/ggcom-bash-utils/sshcon.bash ~/hosts/example.com/exampleUserName
 # $] exampleUserName
 #
+# Thanks:
+# http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
 
 ################################################################################
 SOURCE="${BASH_SOURCE[0]}" # Dave Dopson, Thank You! - http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
