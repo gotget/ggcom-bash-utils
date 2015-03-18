@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - SSH Connector v201503141855
+# GGCOM - Bash - Utils - SSH Connector v201503182051
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/sshcon
 #
@@ -44,7 +44,7 @@ COMMONNAMELENGTH=${#COMMONNAME}
 MATCH1=`echo "$ALIASNAME" | cut -c "$(( COMMONNAMELENGTH + 1 ))-"`
 
 # MATCH 2
-if [ ${#ALIASNAME} -gt $COMMONNAMELENGTH ]; then MATCH2=`echo "${ALIASNAME:0:${#ALIASNAME}-$(( COMMONNAMELENGTH + 1 ))}"`; else MATCH2=''; fi
+if [ ${#ALIASNAME} -gt $COMMONNAMELENGTH ]; then MATCH2="${ALIASNAME:0:$COMMONNAMELENGTH}"; else MATCH2=''; fi
 
 # MATCH 3
 MATCH3=`echo "${ALIASNAME: -$COMMONNAMELENGTH}"`
