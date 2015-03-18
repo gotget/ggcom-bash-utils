@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - SSH Connector v201503182051
+# GGCOM - Bash - Utils - SSH Connector v201503182101
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/sshcon
 #
@@ -44,27 +44,39 @@ COMMONNAMELENGTH=${#COMMONNAME}
 MATCH1=`echo "$ALIASNAME" | cut -c "$(( COMMONNAMELENGTH + 1 ))-"`
 
 # MATCH 2
-if [ ${#ALIASNAME} -gt $COMMONNAMELENGTH ]; then MATCH2="${ALIASNAME:0:$COMMONNAMELENGTH}"; else MATCH2=''; fi
+if [ ${#ALIASNAME} -gt $COMMONNAMELENGTH ]; then MATCH2=`echo "${ALIASNAME:0:${#ALIASNAME}-$(( COMMONNAMELENGTH + 1 ))}"`; else MATCH2=''; fi
 
 # MATCH 3
-MATCH3=`echo "${ALIASNAME: -$COMMONNAMELENGTH}"`
+if [ ${#ALIASNAME} -gt $COMMONNAMELENGTH ]; then MATCH3="${ALIASNAME:0:$COMMONNAMELENGTH}"; else MATCH3=''; fi
+
+# MATCH 4
+MATCH4=`echo "${ALIASNAME: -$COMMONNAMELENGTH}"`
 
 # e.g. ./userName
 USERNAMEMODE='normal'
-# Match conditions
-if [ "$COMMONNAME" == "$MATCH3" ] && [ -z "$MATCH2" ]; then
+#----- MATCH CONDITIONS
+if [ "$COMMONNAME" == "$MATCH4" ] && [ -z "$MATCH2" ]; then
 	# e.g. ./host
 	USERNAMEMODE='short'
+
 elif [ "$COMMONNAME" == "$MATCH2" ]; then
 	# e.g. ./hostRoot
 	USERNAMEMODE='medium'
-elif [ "$MATCH1" == "$MATCH3" ]; then
+
+elif [ "$COMMONNAME" == "$MATCH3" ]; then
+	# e.g. ./hostRoot
+	USERNAMEMODE='medium'
+
+elif [ "$MATCH1" == "$MATCH4" ]; then
 	# e.g. ./hostBob
 	USERNAMEMODE='medium'
-elif [ "$COMMONNAME" == "$MATCH3" ]; then
+
+elif [ "$COMMONNAME" == "$MATCH4" ]; then
 	# e.g. ./ user-host
 	USERNAMEMODE='long'
+
 fi
+#-----/MATCH CONDITIONS
 
 # Connection method based upon condition
 case "$USERNAMEMODE" in
