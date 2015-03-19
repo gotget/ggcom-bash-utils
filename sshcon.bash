@@ -103,8 +103,14 @@ echo ''
 
 #----- MAIN
 echo `str_repeat - 80`
+echo `date +"%Y-%m-%d %H:%M:%S %Z"`
 echo -e "Connecting: ${ggcPurple}${SSHUSER}${ggcNC}@${ggcCyan}${SSHHOST}${ggcNC}"
 echo `str_repeat - 80`
 
 ssh "${SSHUSER}@${SSHHOST}"
+
+echo `str_repeat - 80`
+echo `date +"%Y-%m-%d %H:%M:%S %Z"`
+echo -e "Disconnected: ${ggcPurple}${SSHUSER}${ggcNC}@${ggcCyan}${SSHHOST}${ggcNC}"
+echo `str_repeat - 80`
 #-----/MAIN
