@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - SSH Connector v201503182101
+# GGCOM - Bash - Utils - SSH Connector v201503200716
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/sshcon
 #
@@ -12,6 +12,7 @@
 #
 # Thanks:
 # http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
+# http://stackoverflow.com/questions/8903239/how-to-calculate-time-difference-in-bash-script
 
 ################################################################################
 SOURCE="${BASH_SOURCE[0]}" # Dave Dopson, Thank You! - http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
@@ -103,14 +104,17 @@ echo ''
 
 #----- MAIN
 echo `str_repeat - 80`
+SSHSTART=$(date +%s);
 echo `date +"%Y-%m-%d %H:%M:%S %Z"`
-echo -e "Connecting: ${ggcPurple}${SSHUSER}${ggcNC}@${ggcCyan}${SSHHOST}${ggcNC}"
+echo -e "${ggcLightGreen}Connecting${ggcNC}: ${ggcPurple}${SSHUSER}${ggcNC}@${ggcCyan}${SSHHOST}${ggcNC}"
 echo `str_repeat - 80`
 
 ssh "${SSHUSER}@${SSHHOST}"
 
 echo `str_repeat - 80`
+SSHSTOP=$(date +%s);
 echo `date +"%Y-%m-%d %H:%M:%S %Z"`
-echo -e "Disconnected: ${ggcPurple}${SSHUSER}${ggcNC}@${ggcCyan}${SSHHOST}${ggcNC}"
+echo -e "${ggcLightRed}Disconnected${ggcNC}: ${ggcPurple}${SSHUSER}${ggcNC}@${ggcCyan}${SSHHOST}${ggcNC}"
+echo -e "${ggcLightGray}Duration${ggcNC}: ${ggcLightBlue}$( echo $((SSHSTOP-SSHSTART)) | awk '{printf "%02d:%02d\n",int($1/60), int($1%60)}' )${ggcNC}"
 echo `str_repeat - 80`
 #-----/MAIN
