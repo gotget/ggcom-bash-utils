@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - Hash v201503191947
+# GGCOM - Bash - Utils - Hash v201503292344
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 #
@@ -73,7 +73,7 @@ if [ -z "$2" ]; then	# STRING
 
 else					# FILE
 
-	if [ ! -f $2 ]; then
+	if [ ! -f "$2" ]; then
 		echo "File does not exist." >&2
 		exit 1
 	fi
