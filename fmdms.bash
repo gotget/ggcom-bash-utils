@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201503060453
+# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201503311320
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 #
 # Example usage:
-# export DIFFMTIME=5 DIFFSETTLETIME=2 DIFFLSTIME=10
-# fmdms.bash [~/target/path]
+# export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10
+# export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh'
+# fmdms.bash [ [~/target/localPath | sessionID] [remoteUser@remoteHost:remotePath]]
 
 ################################################################################
 SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
@@ -19,233 +20,473 @@ source "${LIBPATH}/version.bash"
 ################################################################################
 source "${LIBPATH}/prompt.bash"
 source "${LIBPATH}/crypto.bash"
+source "${LIBPATH}/colors.bash"
+source "${LIBPATH}/fileio.bash"
+source "${LIBPATH}/time.bash"
 ################################################################################
 
-# TODO: source hash for resuming from GGCOM data directory (~/.ggcom/) that related GGCOM utilities/libraries use
-# TODO: make $ arguments (or environment variables) fully carry through for headless running
-# TODO: ignore list (e.g. .DS_Store) and some additional features related to grep/pattern exclusion and rsync shenanigans
 # TODO: multiple destinations
 # TODO: reverse synchronization with persistent tunnels
 # TODO: synchronization of different files from different locations all together and using delta/patch for quicker throughput
 
-#----- Variables
+#------------------------------ Functions
+
+function question_source() {
+
+	if [ ! -d "$ansrSrc" ] && [ -z "$sessionId" ]; then
+
+		ansrSrc=`qa_with_def "Source" "$qstnSrc"`
+
+		if [ "${ansrSrc:0:1}" == '.' ]; then
+			ansrSrc="$( cd "$(dirname "$ansrSrc")/$ansrSrc" ; pwd -P )"
+
+		elif [ "${ansrSrc:0:1}" == '~' ]; then
+			ansrSrc="${meMyselfIpath}/${ansrSrc:1}"
+
+		fi
+
+	fi
+
+	echo `real_dir "$ansrSrc"`
+
+} # END FUNCTION: question_source
+
+function question_destination() {
+
+	#----- Variables
+	local testUser=''
+	local testHost=''
+	local testPath=''
+	local ret=`validateUserHost "$ansrDestStr"`
+	#-----/Variables
+
+	# No User
+	if [ -z "$ansrUser" ]; then
+		ret=`qa_with_def "Destination user, server, and path" "${qstnUser}@${qstnSrvr}:${qstnDest}"`
+	fi
+
+	# No Path
+	if [ ! -z `validateUserHost "$ret"` ] && [ -z `parseUserHost "$ret" path` ]; then
+
+		testUser=`parseUserHost "$ret" user`
+		testHost=`parseUserHost "$ret" host`
+
+		testPath=`qa_with_def "Destination path for $(validateUserHost "$ret")" "$qstnDest"`
+
+		ret="${testUser}@${testHost}:${testPath}"
+		unset testPath
+
+	fi
+
+	echo `validateUserHost "$ret"`
+
+} # END FUNCTION: question_destination
+
+function question_rsyncopts() {
+
+	#----- Variables
+	local ret="$ansrRsyncMain"
+	#-----/Variables
+
+	if [ -z "$ret" ]; then
+		ret=`qa_with_def "Rsync Main Options" "$qstnRsyncMain"`
+	fi
+	
+	echo "$ret"
+	
+} # END FUNCTION: question_rsyncopts
+
+function question_rsyncextra() {
+
+	#----- Variables
+	local ret="$ansrRsyncExtra"
+	#-----/Variables
+
+	if [ -z "$ret" ]; then
+		ret=`qa_with_def "Rsync Extra Options" "$qstnRsyncExtra"`
+	fi
+	
+	echo "$ret"
+	
+} # END FUNCTION: question_rsyncextra
+
+#------------------------------/Functions
+
+#------------------------------ Variables
 # Last X seconds of files to watch for modifications at levels: modification, active differences, and routine directory checking
-: ${DIFFMTIME:=5}
-: ${DIFFSETTLETIME:=5}
-: ${DIFFLSTIME:=60}
+: ${FMDMSDIFFMTIME:=5}
+: ${FMDMSDIFFSETTLETIME:=5}
+: ${FMDMSDIFFLSTIME:=60}
+: ${FMDMSRSYNCARGS:=''}
 
-# Local Source
-TMPSRC="${1-`pwd -P`}"
-INPSRC=''
-if [ "${TMPSRC: -1}" != '/' ]; then TMPSRC="$TMPSRC/"; fi # Add trailing slash for TMPSRC
+# Who am I?
+meMyselfI=`whoami`
+meMyselfIpath="$(eval echo "~$meMyselfI")"
 
-# Destination User
-TMPRUSER=`whoami`
-INPRUSER=''
+# rsync
+RSYNCCMD=`which rsync`
+
+# GGCom Path
+GGCOMPATH="$meMyselfIpath/ggcom"
+
+# FMDMS Sessions
+GGCOMSESSIONS="$GGCOMPATH/sessions"
 
 # Source user+loc hash (for recalling and resuming from GGCOM preferences)
 HASHSRC=''
 
+#------------------------------ Session File / Local Source / Input from argv[1]
+
+sessionId=''
+sessionFile=''
+
+qstnSrc=''
+ansrSrc=''
+
+# Valid Session
+if [ ! -z "$1" ] && [ -f "$GGCOMSESSIONS/$1" ]; then
+
+	sessionId="$1"
+	sessionFile="$GGCOMSESSIONS/$sessionId"
+
+	# If valid session, but source is changed
+	qstnSrc=`mod_trail_slash add "$( pwd -P )"`
+
+# Valid Source
+elif [ ! -z "$1" ] && [ -d "$1" ]; then
+
+	qstnSrc="$1"
+	qstnSrc=`mod_trail_slash add "$( real_dir "$qstnSrc" )"`
+#	qstnSrc=`mod_trail_slash add "$qstnSrc"`
+	ansrSrc="$qstnSrc"
+
+# Guess at Source
+else
+
+	qstnSrc=`mod_trail_slash add "$( pwd -P )"`
+
+fi
+
+#------------------------------/Session File / Local Source / Input from argv[1]
+
+#------------------------------ Remote user@host:~/path
+
+# Valid Destination String? (user@host[:~/path/here])
+[[ ! -z "`validateUserHost "$2"`" ]] && qstnDestStr="`validateUserHost "$2"`" || qstnDestStr=''
+ansrDestStr="$qstnDestStr"
+
+# Destination User
+qstnUser="$meMyselfI"
+ansrUser=`parseUserHost "$ansrDestStr" user`
+
 # Destination Server
-TMPRSERV='localhost'
-INPRSERV=''
+qstnSrvr='localhost'
+ansrSrvr=`parseUserHost "$ansrDestStr" host`
 
-# Destination
-TMPDEST='' # SET BELOW INP
-INPDEST=''
+# Destination Path
+qstnDest='' # Set below, after "Question: Source" is answered
+ansrDest=`parseUserHost "$ansrDestStr" path`
 
-# Hard Links? (e.g. useful for dealing with synchronizing rsnapshot's directory and preserving hard-link/inode references)
-INPROPTHARD='' # SET BELOW
-ROPTS='--archive --verbose --progress --partial --delete --rsh=/usr/bin/ssh'
+#------------------------------/Remote user@host:~/path
 
-# rsync
-RSYNCCMD=`which rsync`
-#-----/Variables
+#------------------------------ Rsync Options
+
+qstnRsyncMain='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh'
+ansrRsyncMain="$FMDMSRSYNCARGS"
+
+qstnRsyncExtra=''
+ansrRsyncExtra=''
+
+#------------------------------/Rsync Options
+
+#------------------------------/Variables
 
 #----- NOTICE: INFO
 echo `str_repeat - 80`
 echo "`getVersion $0 header`"
 echo `str_repeat - 80`
-echo "You can modify times, example: 'export DIFFMTIME=5 DIFFSETTLETIME=2 DIFFLSTIME=10'"
-echo `str_repeat - 80`
+
+if [ -z "$sessionId" ]; then
+	echo -e "You can modify times, example: ${ggcLightCyan}export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10${ggcNC}"
+	echo -e "You can load Rsync arguments, example: ${ggcLightCyan}export FMDMSRSYNCARGS='${qstnRsyncMain} --exclude=\".DS_Store\" --exclude=\".git\"'${ggcNC}"
+	echo `str_repeat - 80`
+fi
+
 echo;
 #-----/NOTICE: INFO
 
-#----- Startup Questions
-# Source directory
-if [ -z $1 ]; then
-	read -p "Source [$TMPSRC] : " INPSRC
-	if [ -z "$INPSRC" ]; then
-		INPSRC=$TMPSRC
+#----- Attempt to restore session
+if [ ! -z "$sessionId" ]; then
+
+	echo -e "${ggcLightBlue}Restoring session '${ggcNC}${ggcLightPurple}${sessionId}${ggcNC}${ggcLightBlue}'${ggcNC}"
+
+	echo -e "${ggcLightCyan}$sessionFile${ggcNC}"
+
+	echo `str_repeat - 40`
+	echo -e "${ggcLightGreen}`cat "$sessionFile"`${ggcNC}"
+	echo `str_repeat - 40`
+
+	source "$sessionFile"
+	ansrDestStr="${ansrUser}@${ansrSrvr}:${ansrDest}"
+
+	echo `str_repeat - 80`
+
+fi
+#-----/Attempt to restore session
+
+#------------------------------ Startup Questions
+
+#--------------- Question: Source
+#: <<'END'
+while :
+do
+	if [ -d "$ansrSrc" ]; then
+		echo -e "${ggcLightGreen}Source: $ansrSrc${ggcNC}"
+		break
+
+	else
+		ansrSrc=`question_source`
+		if [ -z "$ansrSrc" ]; then
+			echo -e "${ggcLightRed}Invalid path.${ggcNC}";
+			if [ ! -z "$sessionId" ]; then
+				sessionId=''
+			fi
+		fi
+
 	fi
-else
-	INPSRC=$TMPSRC
+done
+#END
+#---------------/Question: Source
+
+#--------------- Question: Destination
+qstnDest="~/tmp/`isolate_dir_name "$ansrSrc"`" # was set above & using qstnSrc
+
+#: <<'END'
+while :
+do
+	if [ ! -z "$ansrUser" ] && [ ! -z "$ansrSrvr" ] && [ ! -z "$ansrDest" ] && [ ! -z `validateUserHost "${ansrUser}@${ansrSrvr}:${ansrDest}"` ]; then
+		echo -e "${ggcLightGreen}Destination: $ansrDestStr${ggcNC}"
+		break
+	else
+		ansrDestStr=`question_destination`
+		ansrUser=`parseUserHost "$ansrDestStr" user`
+		ansrSrvr=`parseUserHost "$ansrDestStr" host`
+		ansrDest=`parseUserHost "$ansrDestStr" path`
+		if [ -z "$ansrDestStr" ]; then
+			echo -e "${ggcLightRed}Invalid destination.${ggcNC}";
+		fi
+	fi
+done
+#END
+#---------------/Question: Destination
+
+#--------------- Question: Rsync Main Options
+while :
+do
+	if [ ! -z "$ansrRsyncMain" ]; then
+		echo -e "${ggcLightGreen}${ansrRsyncMain} ${ansrRsyncExtra}${ggcNC}"
+		break
+	else
+		ansrRsyncMain=`question_rsyncopts`
+
+		#--------------- Question: Rsync Extra Options
+		echo;
+		echo "Additional Rsync options can aid for deeper synchronization efforts, examples:"
+		echo -e "* If you're synchronizing rsnapshot, you'll want to add '${ggcLightCyan}--hard-links${ggcNC}'"
+		echo -e "* Exclude temporary files and OSX-specific files? Add ${ggcLightCyan}--exclude=\"*~\" --exclude=\".DS_Store\" --exclude=\".git\"${ggcNC}"
+		echo;
+		ansrRsyncExtra=`question_rsyncextra`
+		#---------------/Question: Rsync Extra Options
+	fi
+done
+#---------------/Question: Rsync Main Options
+
+#------------------------------/Startup Questions
+
+#----- Save Session File
+if [ -z "$sessionId" ]; then
+	mkdir -pv "$GGCOMSESSIONS"
+
+	echo;
+
+	# MD5 hash of SOURCE:USER@SERVER:REMOTEPATH
+	HASHSRC=`qa_with_def "Session file name" "$( cryptoHashCalc sha1 string "FMDMS:$SCRIPTPATH:$SCRIPTNAME:$ansrSrc:$ansrUser@$ansrSrvr:$ansrDest:'$ansrRsyncMain':'$ansrRsyncExtra'" )"`
+
+cat <<!FMDMSSESSION > "$GGCOMSESSIONS/$HASHSRC"
+export FMDMSDIFFMTIME=$FMDMSDIFFMTIME
+export FMDMSDIFFSETTLETIME=$FMDMSDIFFSETTLETIME
+export FMDMSDIFFLSTIME=$FMDMSDIFFLSTIME
+
+ansrRsyncMain="$ansrRsyncMain"
+ansrRsyncExtra='$ansrRsyncExtra'
+
+ansrSrc="$ansrSrc"
+ansrUser="$ansrUser"
+ansrSrvr="$ansrSrvr"
+ansrDest="$ansrDest"
+!FMDMSSESSION
+
+	echo;
+	echo -e "${ggcLightGreen}Session file saved to:${ggcNC}"
+	echo -e "${GGCOMSESSIONS}/${HASHSRC}"
 fi
-if [ "${INPSRC:0:1}" == '.' ]; then
-	INPSRC=$( cd "$(dirname "$INPSRC")" ; pwd -P )
+#-----/Save Session File
+
+# Session Resume Notice
+if [ -z "$sessionId" ]; then
+	echo;
+	echo -e "${ggcLightBlue}This session can be restarted with:${ggcNC}";
+	echo -e "${ggcLightCyan}$SCRIPTNAME${ggcNC} ${ggcLightPurple}$HASHSRC${ggcNC}"
 fi
 
-# Check directory existence
-if [ ! -d "$INPSRC" ]; then
-	echo "Invalid source directory ($INPSRC).  Exiting." >&2
-	exit 1;
-fi
+#----- Test remote connection
+if [ "$ansrSrvr" != 'localhost' ]; then
 
-# Source user+loc hash
-HASHSRC=`cryptoHashCalc md5 string "$TMPRUSER:$INPSRC"`
-# read: do you want to resume your last session?
-
-# Destination User
-read -p "Destination User [$TMPRUSER] : " INPRUSER
-if [ -z "$INPRUSER" ]; then
-	INPRUSER=$TMPRUSER
-fi
-
-# Destination Server
-read -p "Destination Server [$TMPRSERV] : " INPRSERV
-if [ -z "$INPRSERV" ]; then
-	INPRSERV=$TMPRSERV
-fi
-
-# Test remote connection
-if [ "$INPRSERV" != 'localhost' ]; then
 	echo -n "Testing connection... "
 	echo "(if asked for a password, use ggcom-bash-utils/bootstrapRsaAuth.bash to resolve this)"
 	echo `str_repeat - 80`
-	REMWHOAMIERR=`mktemp 2>/dev/null || mktemp -t 'sync'`
-	REMWHOAMI=`eval ssh $INPRUSER@$INPRSERV "whoami" 2>"$REMWHOAMIERR"`
-	if [ "$REMWHOAMI" != "$INPRUSER" ]; then
-		echo `cat "$REMWHOAMIERR"` >&2
-		echo "Remote user failure ($INPRUSER@$INPRSERV): received '$REMWHOAMI', but was expecting '$INPRUSER'.  Exiting." >&2
+
+	REMWHOAMIERR=`mktemp 2>/dev/null || mktemp -t 'fmdms'`
+	REMWHOAMI=`ssh $ansrUser@$ansrSrvr "whoami" 2>"$REMWHOAMIERR"`
+
+	if [ "$REMWHOAMI" == "$ansrUser" ]; then
+		echo "Connection successful."
+
+	else
+		echo -e "${ggcLightRed}ERROR: `cat "$REMWHOAMIERR"`${ggcNC}" >&2
+		echo -e "${ggcLightRed}Remote user failure ($ansrUser@$ansrSrvr): received '$REMWHOAMI', but was expecting '$ansrUser'.  Exiting.${ggcNC}" >&2
 		rm -rf $REMWHOAMIERR
 		exit 1;
-	else
-		echo "Connection successful."
+
 	fi
+
 	unset REMWHOAMI
 	rm -rf $REMWHOAMIERR
 	echo `str_repeat - 80`
+
 fi
+#-----/Test remote connection
 
-# Strip trailing slash for INPSRC (to build TMPDEST)
-if [ "${INPSRC: -1}" == '/' ]; then INPSRC="${INPSRC%?}"; fi
+#----- Setup destination directory
+ansrDestFull=`userDestPath "$ansrDestStr"`
 
-# Try and guess at proper destination location
-if [ "$INPRSERV" == 'localhost' ]; then
-	TMPDEST="`eval echo ~$INPRUSER`/tmp/${INPSRC##*/}"
-else
-	TMPDEST="~/tmp/${INPSRC##*/}"
-fi
+echo -n "Setting up destination directory ('$ansrDestFull') for receiving... "
 
-# Re-add trailing slash to INPSRC
-INPSRC="$INPSRC/"
+qstnDestDIRSETUP="mkdir -pv $ansrDestFull"
 
-# Add trailing slash to TMPDEST
-TMPDEST="$TMPDEST/"
+# Local Host
+if [ "$ansrSrvr" == 'localhost' ]; then
 
-# Destination
-read -p "Destination Directory [$TMPDEST] : " INPDEST
-if [ -z "$INPDEST" ]; then
-	INPDEST=$TMPDEST
-else
-	# Add slash if not there
-	if [ "${INPDEST: -1}" != '/' ]; then INPDEST="$INPDEST/"; fi
-fi
+	# me@localhost
+	if [ "$ansrUser" == "$meMyselfI" ]; then
+		if [ -z "$(eval $qstnDestDIRSETUP)" ]; then echo "setup."; else echo "finished."; fi
 
-# Setup destination directory
-echo -n "Setting up destination directory ('$INPDEST') for receiving... "
-TMPDESTDIRSETUP="mkdir -pv $INPDEST"
-# localhost
-if [ "$INPRSERV" == 'localhost' ]; then
-	# Same user
-	if [ "$INPRUSER" == `whoami` ]; then
-		if [ -z "$(eval $TMPDESTDIRSETUP)" ]; then echo "setup."; else echo "finished."; fi
-	# Different user
+	# other@localhost
 	else
 		echo "(activating sudo) ";
-		if [ "$(eval sudo -u $INPRUSER whoami 2>/dev/null)" != "$INPRUSER" ]; then
-			echo "Failed to procure sudo rights.  Exiting." >&2
+		if [ "$(eval sudo -u "$ansrUser" whoami 2>/dev/null)" != "$ansrUser" ]; then
+			echo -e "${ggcLightRed}ERROR: Failed to procure sudo rights.  Exiting.${ggcNC}" >&2
 			exit 1
 		fi
-		if [ -z "$(eval sudo -u $INPRUSER $TMPDESTDIRSETUP)" ]; then echo "setup."; else echo "finished."; fi
+		if [ -z "$(eval sudo -u $ansrUser -H bash -c "'$qstnDestDIRSETUP'")" ]; then echo "setup."; else echo "finished."; fi
+
 	fi
-# remote host
+
+# Remote Host
 else
-	if [ -z "$(eval ssh $INPRUSER@$INPRSERV '$TMPDESTDIRSETUP')" ]; then echo "setup."; else echo "finished."; fi
+	if [ -z "$(eval ssh "$ansrUser@$ansrSrvr" "'$qstnDestDIRSETUP'")" ]; then echo "setup."; else echo "finished."; fi
 fi
-unset TMPDESTDIRSETUP
 
-# Hard links
-read -n1 -r -p "Mind the hard-links (eg for rsnapshot)? [n] " INPROPTHARD
-if [[ `echo ${INPROPTHARD:0:1} | tr '[:upper:]' '[:lower:]'` == "y" ]]; then
-	ROPTS="$ROPTS --hard-links"
-fi
-echo; # newline for read's single-character grab
-#-----/Startup Questions
+unset qstnDestDIRSETUP
+#-----/Setup destination directory
 
-#----- Execution
-if [ "$INPRSERV" == 'localhost' ]; then
-	FULLCMD="$RSYNCCMD $ROPTS '$INPSRC' '$INPDEST'";
-	if [ "$INPRUSER" != `whoami` ]; then FULLCMD="(sudo $FULLCMD; sudo chown -R $INPRUSER: '$INPDEST')"; fi
+#----- Execution Command
+# Rsync Options
+ROPTS="$ansrRsyncMain"
+if [ ! -z "$ansrRsyncExtra" ]; then ROPTS="$ROPTS $ansrRsyncExtra"; fi
+
+# Local host
+if [ "$ansrSrvr" == 'localhost' ]; then
+
+	# me@localhost
+	FULLCMD="$RSYNCCMD $ROPTS '$( mod_trail_slash add "$ansrSrc" )' '$( mod_trail_slash add "$ansrDestFull" )'";
+
+	# other@localhost
+	if [ "$ansrUser" != "$meMyselfI" ]; then FULLCMD="(sudo $FULLCMD; sudo chown -R $ansrUser: '$ansrDestFull')"; fi
+
+# Remote Host
 else
-	FULLCMD="$RSYNCCMD $ROPTS '$INPSRC' $INPRUSER@$INPRSERV:'$INPDEST'";
-fi
-#-----/Execution
+	FULLCMD="$RSYNCCMD $ROPTS '$( mod_trail_slash add "$ansrSrc" )' $ansrUser@$ansrSrvr:'$( mod_trail_slash add "$ansrDestFull" )'";
 
-#----- Initial Sync
+fi
+
+unset ROPTS
+#-----/Execution Command
+
+#------------------------------ Initial Sync
 echo "Activating logging:"
-TMPCHECKLOG=`mktemp 2>/dev/null || mktemp -t 'sync'`
-TMPCHECKERR=`mktemp 2>/dev/null || mktemp -t 'sync'`
+TMPCHECKLOG=`mktemp 2>/dev/null || mktemp -t 'fmdms'`
+TMPCHECKERR=`mktemp 2>/dev/null || mktemp -t 'fmdms'`
+
 echo "Operations : $TMPCHECKLOG"
 echo "Errors     : $TMPCHECKERR"
-echo;
-echo "`date +\"%Y-%m-%d %H:%M:%S\"`: Initial synchronization started."
+
+echo `str_repeat - 80`
+
+echo -e "${ggcBrownOrange}$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR${ggcNC}";
+
+echo `str_repeat - 80`
+
+echo -e "`iso8601 LightCyan`: Initial synchronization started: ${ggcLightPurple}$meMyselfI@localhost${ggcNC} ${ggcLightRed}=>${ggcNC} ${ggcLightBlue}$ansrUser@$ansrSrvr${ggcNC}"
+
 eval "$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR";
-if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo "A critical error has occurred with synchronization and has been logged ($TMPCHECKERR).  Exiting." >&2; exit 1; fi
-echo "`date +\"%Y-%m-%d %H:%M:%S\"`: Initial synchronization finished."
-#-----/Initial Sync
+
+if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo -e "${ggcLightRed}ERROR: A critical error has occurred with synchronization and has been logged ($TMPCHECKERR).  Exiting.${ggcNC}" >&2; exit 1; fi
+
+echo -e "`iso8601 LightCyan`: Initial synchronization finished."
+#------------------------------/Initial Sync
 
 #----- Constant Sync
-echo "`date +\"%Y-%m-%d %H:%M:%S\"`: Starting constant synchronization, press 'q' to exit."
+echo -e "`iso8601 LightCyan`: Starting constant synchronization, press 'q' to exit."
 echo;
 
 LSCNT=0
-LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
+LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$ansrSrc")"`
 LSOLD=$LSNEW
 TRIGGERSYNC=false
-DIFF=$DIFFMTIME
+DIFF=$FMDMSDIFFMTIME
 
 while :; do
 	START=$(date +%s)
 
 	# Hash of entire directory (for detecting deleted files)
-	if [ "$LSCNT" -ge "$DIFFLSTIME" ]; then
+	if [ "$LSCNT" -ge "$FMDMSDIFFLSTIME" ]; then
 		LSCNT=0
-		LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
+		LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$ansrSrc")"`
 		if [ "$LSNEW" != "$LSOLD" ]; then TRIGGERSYNC=true; fi
 		LSOLD=$LSNEW
 	fi
 
 	# Changes within DIFF seconds have occurred.
-	TMPCHANGES=`find "$INPSRC" -type f -mtime -"$DIFF"s`
+	TMPCHANGES=`find "$ansrSrc" -type f -mtime -"$DIFF"s`
 	if [ ! -z "$TMPCHANGES" ] || [ "$TRIGGERSYNC" == true ]; then
 
 		TRIGGERSYNC=false
 
 		# Pause until all saves have completed
-		echo "`date +\"%Y-%m-%d %H:%M:%S\"`: There is a disturbance in the Force..."
+		echo -e "`iso8601 LightCyan`: There is a disturbance in the Force..."
 		while :; do
 
-			echo -n "`date +\"%Y-%m-%d %H:%M:%S\"`: Checking in with Obi-Wan for an assessment..."
+			echo -e -n "`iso8601 LightCyan`: Checking in with Obi-Wan for an assessment..."
 
 			# Freeze snapshot of entire directory
-			TMPLSFRZ=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
+			TMPLSFRZ=`cryptoHashCalc md5 string "$(ls -laR "$ansrSrc")"`
 
 			# Sleep
-			sleep $DIFFSETTLETIME
+			sleep $FMDMSDIFFSETTLETIME
 
 			# Current snapshot of entire directory
-			TMPLSNOW=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
+			TMPLSNOW=`cryptoHashCalc md5 string "$(ls -laR "$ansrSrc")"`
 
 			# Determine if identical or different
 			if [ "$TMPLSFRZ" == "$TMPLSNOW" ]; then echo; break; else echo " Have patience, Luke.  Changes are still occurring."; fi
@@ -254,7 +495,7 @@ while :; do
 		unset TMPLSFRZ TMPLSNOW
 
 		# List detected files and commence synchronization
-		echo "`date +\"%Y-%m-%d %H:%M:%S\"`: Force activity has subsided:"
+		echo -e "`iso8601 LightCyan`: Force activity has subsided:"
 		echo '----------'
 		if [ -z "$TMPCHANGES" ]; then
 			echo '"I felt a great disturbance in the Force, as if millions of voices suddenly cried out in terror and were suddenly silenced.  I fear something terrible has happened."  -Ben Obi-Wan Kenobi'
@@ -265,10 +506,10 @@ while :; do
 		echo '----------'
 
 		eval "$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR";
-		if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo "A critical error has occurred with synchronization and has been logged ($TMPCHECKERR).  Exiting." >&2; exit 1; fi
+		if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo -e "${ggcLightRed}ERROR: A critical error has occurred with synchronization and has been logged ($TMPCHECKERR).  Exiting.${ggcNC}" >&2; exit 1; fi
 
 		# Update hash of directory listing
-		LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$INPSRC")"`
+		LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$ansrSrc")"`
 		LSOLD=$LSNEW
 		
 		# Reset check count
@@ -278,17 +519,17 @@ while :; do
 		END=$(date +%s)
 		DIFF=$(echo "$END - $START" | bc)
 
-		echo "`date +\"%Y-%m-%d %H:%M:%S\"`: Synchronization completed after $DIFF seconds."
+		echo -e "`iso8601 LightCyan`: Synchronization completed after $DIFF seconds."
 
 		# Add grace period
-		if [ $DIFF -lt $DIFFMTIME ]; then sleep $(( DIFFMTIME - DIFF )); fi # Temporary bug fix for dealing with .DS_Store
-#		DIFF=$(( DIFF + DIFFMTIME )) # Bug: Too wonky with .DS_Store updating during this process, thus causing vicious looping.
-		DIFF=$DIFFMTIME
+		if [ $DIFF -lt $FMDMSDIFFMTIME ]; then sleep $(( FMDMSDIFFMTIME - DIFF )); fi # Temporary bug fix for dealing with .DS_Store
+#		DIFF=$(( DIFF + FMDMSDIFFMTIME )) # Bug: Too wonky with .DS_Store updating during this process, thus causing vicious looping.
+		DIFF=$FMDMSDIFFMTIME
 
 	# Otherwise back to checking files' modification time of last X seconds
 	else
 
-		DIFF=$DIFFMTIME
+		DIFF=$FMDMSDIFFMTIME
 
 	fi
 	#/Changes within DIFF seconds have occurred.
@@ -298,10 +539,10 @@ while :; do
 	read -t 1 -n1 -r QUITCMD
 	if [[ `echo ${QUITCMD:0:1} | tr '[:upper:]' '[:lower:]'` == "q" ]]; then
 		echo;
-		echo "Exit request acknowledged.";
-		echo "Removing log files:"
+		echo -e "`iso8601 LightCyan`: Exit request acknowledged.";
+		echo -e "`iso8601 LightCyan`: Removing log files:"
 		rm -rfv $TMPCHECKLOG $TMPCHECKERR
-		echo "Exit completed.";
+		echo -e "`iso8601 LightCyan`: Exit completed.";
 		exit 0;
 	fi
 
