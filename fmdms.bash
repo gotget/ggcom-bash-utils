@@ -6,7 +6,7 @@
 #
 # Example usage:
 # export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10
-# export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh'
+# export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh --exclude=".DS_Store" --exclude=".git"'
 # fmdms.bash [ [~/target/localPath | sessionID] [remoteUser@remoteHost:remotePath]]
 
 ################################################################################
