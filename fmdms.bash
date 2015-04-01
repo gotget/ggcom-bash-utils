@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201503311320
+# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504010237
 # Louis T. Getterman IV (@LTGIV)
 # www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 #
@@ -10,8 +10,8 @@
 # fmdms.bash [ [~/target/localPath | sessionID] [remoteUser@remoteHost:remotePath]]
 
 ################################################################################
-SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
-SCRIPTNAME=`basename $0`
+SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
+SCRIPTNAME=`basename "$0"`
 LIBPATH="$( cd "$(dirname "${SCRIPTPATH}/../../")" ; pwd -P )/ggcom-bash-library"
 ################################################################################
 source "${LIBPATH}/varsBash.bash"
@@ -135,6 +135,9 @@ GGCOMSESSIONS="$GGCOMPATH/sessions"
 # Source user+loc hash (for recalling and resuming from GGCOM preferences)
 HASHSRC=''
 
+# Interactive Session?
+INTERACTIVE=false
+
 #------------------------------ Session File / Local Source / Input from argv[1]
 
 sessionId=''
@@ -203,7 +206,7 @@ ansrRsyncExtra=''
 
 #----- NOTICE: INFO
 echo `str_repeat - 80`
-echo "`getVersion $0 header`"
+echo "`getVersion "$0" header`"
 echo `str_repeat - 80`
 
 if [ -z "$sessionId" ]; then
@@ -211,8 +214,6 @@ if [ -z "$sessionId" ]; then
 	echo -e "You can load Rsync arguments, example: ${ggcLightCyan}export FMDMSRSYNCARGS='${qstnRsyncMain} --exclude=\".DS_Store\" --exclude=\".git\"'${ggcNC}"
 	echo `str_repeat - 80`
 fi
-
-echo;
 #-----/NOTICE: INFO
 
 #----- Attempt to restore session
@@ -245,6 +246,7 @@ do
 		break
 
 	else
+		INTERACTIVE=true
 		ansrSrc=`question_source`
 		if [ -z "$ansrSrc" ]; then
 			echo -e "${ggcLightRed}Invalid path.${ggcNC}";
@@ -268,6 +270,7 @@ do
 		echo -e "${ggcLightGreen}Destination: $ansrDestStr${ggcNC}"
 		break
 	else
+		INTERACTIVE=true
 		ansrDestStr=`question_destination`
 		ansrUser=`parseUserHost "$ansrDestStr" user`
 		ansrSrvr=`parseUserHost "$ansrDestStr" host`
@@ -284,9 +287,10 @@ done
 while :
 do
 	if [ ! -z "$ansrRsyncMain" ]; then
-		echo -e "${ggcLightGreen}${ansrRsyncMain} ${ansrRsyncExtra}${ggcNC}"
+		echo -e "${ggcLightGreen}Rsync options: ${ansrRsyncMain} ${ansrRsyncExtra}${ggcNC}"
 		break
 	else
+		INTERACTIVE=true
 		ansrRsyncMain=`question_rsyncopts`
 
 		#--------------- Question: Rsync Extra Options
@@ -304,13 +308,15 @@ done
 #------------------------------/Startup Questions
 
 #----- Save Session File
-if [ -z "$sessionId" ]; then
+if [ -z "$sessionId" ] && [ "$INTERACTIVE" == true ]; then
 	mkdir -pv "$GGCOMSESSIONS"
 
 	echo;
 
 	# MD5 hash of SOURCE:USER@SERVER:REMOTEPATH
-	HASHSRC=`qa_with_def "Session file name" "$( cryptoHashCalc sha1 string "FMDMS:$SCRIPTPATH:$SCRIPTNAME:$ansrSrc:$ansrUser@$ansrSrvr:$ansrDest:'$ansrRsyncMain':'$ansrRsyncExtra'" )"`
+	TMPHASHSUM="$( cryptoHashCalc sha1 string "FMDMS:$SCRIPTPATH:$SCRIPTNAME:$ansrSrc:$ansrUser@$ansrSrvr:$ansrDest:'$ansrRsyncMain':'$ansrRsyncExtra'" )"
+	HASHSRC=`qa_with_def "Session file name" "$TMPHASHSUM"`
+	unset TMPHASHSUM
 
 cat <<!FMDMSSESSION > "$GGCOMSESSIONS/$HASHSRC"
 export FMDMSDIFFMTIME=$FMDMSDIFFMTIME
@@ -332,19 +338,14 @@ ansrDest="$ansrDest"
 fi
 #-----/Save Session File
 
-# Session Resume Notice
-if [ -z "$sessionId" ]; then
-	echo;
-	echo -e "${ggcLightBlue}This session can be restarted with:${ggcNC}";
-	echo -e "${ggcLightCyan}$SCRIPTNAME${ggcNC} ${ggcLightPurple}$HASHSRC${ggcNC}"
-fi
-
 #----- Test remote connection
 if [ "$ansrSrvr" != 'localhost' ]; then
 
+	echo `str_repeat - 80`
 	echo -n "Testing connection... "
 	echo "(if asked for a password, use ggcom-bash-utils/bootstrapRsaAuth.bash to resolve this)"
-	echo `str_repeat - 80`
+
+	echo `str_repeat - 10`
 
 	REMWHOAMIERR=`mktemp 2>/dev/null || mktemp -t 'fmdms'`
 	REMWHOAMI=`ssh $ansrUser@$ansrSrvr "whoami" 2>"$REMWHOAMIERR"`
@@ -419,11 +420,11 @@ else
 	FULLCMD="$RSYNCCMD $ROPTS '$( mod_trail_slash add "$ansrSrc" )' $ansrUser@$ansrSrvr:'$( mod_trail_slash add "$ansrDestFull" )'";
 
 fi
-
-unset ROPTS
 #-----/Execution Command
 
 #------------------------------ Initial Sync
+echo `str_repeat - 80`
+
 echo "Activating logging:"
 TMPCHECKLOG=`mktemp 2>/dev/null || mktemp -t 'fmdms'`
 TMPCHECKERR=`mktemp 2>/dev/null || mktemp -t 'fmdms'`
@@ -433,10 +434,34 @@ echo "Errors     : $TMPCHECKERR"
 
 echo `str_repeat - 80`
 
+# Session Resume Notice
+if [ -z "$sessionId" ] && [ "$INTERACTIVE" == true ]; then
+	echo -e "${ggcLightBlue}This session can be restarted with:${ggcNC}";
+	echo -e "${ggcLightCyan}$SCRIPTNAME${ggcNC} ${ggcLightPurple}$HASHSRC${ggcNC}"
+	echo `str_repeat - 80`
+fi
+
+# Headless instance information
+echo "A headless instance can be created using:"
+echo;
+echo -e "$(cat <<!QUICKRESUME
+${ggcCyan}export FMDMSDIFFMTIME=$FMDMSDIFFMTIME
+export FMDMSDIFFSETTLETIME=$FMDMSDIFFSETTLETIME
+export FMDMSDIFFLSTIME=$FMDMSDIFFLSTIME
+export FMDMSRSYNCARGS='$ROPTS'
+
+"${SCRIPTPATH}/${SCRIPTNAME}" "${ansrSrc}" ${ansrUser}@${ansrSrvr}:${ansrDest}${ggcNC}
+!QUICKRESUME
+)"
+
+# Rsync Command
+echo `str_repeat - 80`
+echo "Rsync command to be used:"
+echo;
 echo -e "${ggcBrownOrange}$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR${ggcNC}";
 
+# Initial Synchronization
 echo `str_repeat - 80`
-
 echo -e "`iso8601 LightCyan`: Initial synchronization started: ${ggcLightPurple}$meMyselfI@localhost${ggcNC} ${ggcLightRed}=>${ggcNC} ${ggcLightBlue}$ansrUser@$ansrSrvr${ggcNC}"
 
 eval "$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR";
