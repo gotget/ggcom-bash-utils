@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504020726
+GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504020753
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 
@@ -227,9 +227,13 @@ echo "`getVersion "$0" header`"
 echo `str_repeat - 80`
 
 if [ -z "$sessionId" ]; then
-	echo -e "You can modify times, example: ${ggcLightCyan}export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10${ggcNC}"
-	echo -e "You can load Rsync arguments, example: ${ggcLightCyan}export FMDMSRSYNCARGS='${qstnRsyncMain} --exclude=\".DS_Store\" --exclude=\".git\"'${ggcNC}"
-	echo `str_repeat - 80`
+	echo -e "$(cat <<!ENVVARNOTICE
+You can modify times, example: ${ggcLightCyan}export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10${ggcNC}
+You can load Rsync arguments, example: ${ggcLightCyan}export FMDMSRSYNCARGS='${qstnRsyncMain} --exclude=\".DS_Store\" --exclude=\".git\"'${ggcNC}
+You can turn on notices, example: ${ggcLightCyan}export FMDMSNOTIFYAPP='/usr/local/bin/growlnotify' && export FMDMSNOTIFYARGS="--message '%message%' --title '%title%'"${ggcNC}
+`str_repeat - 80`
+!ENVVARNOTICE
+)"
 fi
 #-----/NOTICE: INFO
 
