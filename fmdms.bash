@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
-#
-# GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504010237
-# Louis T. Getterman IV (@LTGIV)
-# www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
-#
-# Example usage:
-# export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10
-# export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh --exclude=".DS_Store" --exclude=".git"'
-# fmdms.bash [ [~/target/localPath | sessionID] [remoteUser@remoteHost:remotePath]]
+: <<'!COMMENT'
+
+GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504020726
+Louis T. Getterman IV (@LTGIV)
+www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
+
+Example usage:
+export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10
+export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh --exclude=".DS_Store" --exclude=".git"'
+export FMDMSNOTIFYAPP='/usr/local/bin/growlnotify'
+export FMDMSNOTIFYARGS="--message '%message%' --title '%title%'"
+fmdms.bash [ [~/target/localPath | sessionID] [remoteUser@remoteHost:remotePath]]
+
+!COMMENT
 
 ################################################################################
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
@@ -25,9 +30,16 @@ source "${LIBPATH}/fileio.bash"
 source "${LIBPATH}/time.bash"
 ################################################################################
 
-# TODO: multiple destinations
-# TODO: reverse synchronization with persistent tunnels
-# TODO: synchronization of different files from different locations all together and using delta/patch for quicker throughput
+: <<'!COMMENT'
+
+To-do:
+* recognize kill signal from $( kill `ps aux | grep fmdms.bash | grep -v grep | awk '{print $2}'` ) and shutdown accordingly
+* optionally, sessions saved/loaded from paths other than ~/ggcom/sessions
+* multiple destinations
+* reverse synchronization with persistent tunnels
+* synchronization of different files from different locations all together and using delta/patch for quicker throughput
+
+!COMMENT
 
 #------------------------------ Functions
 
@@ -118,6 +130,11 @@ function question_rsyncextra() {
 : ${FMDMSDIFFSETTLETIME:=5}
 : ${FMDMSDIFFLSTIME:=60}
 : ${FMDMSRSYNCARGS:=''}
+: ${FMDMSNOTIFYAPP:=''}
+: ${FMDMSNOTIFYARGS:=''}
+
+# Valid notification application?
+type "$FMDMSNOTIFYAPP" 1>/dev/null 2>&1 || { FMDMSNOTIFYAPP=""; }
 
 # Who am I?
 meMyselfI=`whoami`
@@ -238,7 +255,6 @@ fi
 #------------------------------ Startup Questions
 
 #--------------- Question: Source
-#: <<'END'
 while :
 do
 	if [ -d "$ansrSrc" ]; then
@@ -257,13 +273,11 @@ do
 
 	fi
 done
-#END
 #---------------/Question: Source
 
 #--------------- Question: Destination
 qstnDest="~/tmp/`isolate_dir_name "$ansrSrc"`" # was set above & using qstnSrc
 
-#: <<'END'
 while :
 do
 	if [ ! -z "$ansrUser" ] && [ ! -z "$ansrSrvr" ] && [ ! -z "$ansrDest" ] && [ ! -z `validateUserHost "${ansrUser}@${ansrSrvr}:${ansrDest}"` ]; then
@@ -280,7 +294,6 @@ do
 		fi
 	fi
 done
-#END
 #---------------/Question: Destination
 
 #--------------- Question: Rsync Main Options
@@ -432,6 +445,9 @@ TMPCHECKERR=`mktemp 2>/dev/null || mktemp -t 'fmdms'`
 echo "Operations : $TMPCHECKLOG"
 echo "Errors     : $TMPCHECKERR"
 
+`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$ansrUser@$ansrSrvr" "Operations log: $TMPCHECKLOG"`
+`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$ansrUser@$ansrSrvr" "Error log: $TMPCHECKERR"`
+
 echo `str_repeat - 80`
 
 # Session Resume Notice
@@ -462,12 +478,15 @@ echo -e "${ggcBrownOrange}$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR${ggcNC}";
 
 # Initial Synchronization
 echo `str_repeat - 80`
+
+`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$ansrUser@$ansrSrvr" "Initial synchronization started."`
 echo -e "`iso8601 LightCyan`: Initial synchronization started: ${ggcLightPurple}$meMyselfI@localhost${ggcNC} ${ggcLightRed}=>${ggcNC} ${ggcLightBlue}$ansrUser@$ansrSrvr${ggcNC}"
 
 eval "$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR";
 
 if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo -e "${ggcLightRed}ERROR: A critical error has occurred with synchronization and has been logged ($TMPCHECKERR).  Exiting.${ggcNC}" >&2; exit 1; fi
 
+`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$ansrUser@$ansrSrvr" "Initial synchronization finished."`
 echo -e "`iso8601 LightCyan`: Initial synchronization finished."
 #------------------------------/Initial Sync
 
@@ -499,7 +518,9 @@ while :; do
 		TRIGGERSYNC=false
 
 		# Pause until all saves have completed
+		`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$( isolate_dir_name "$ansrSrc" )" "There is a disturbance in the Force..."`
 		echo -e "`iso8601 LightCyan`: There is a disturbance in the Force..."
+
 		while :; do
 
 			echo -e -n "`iso8601 LightCyan`: Checking in with Obi-Wan for an assessment..."
@@ -531,7 +552,11 @@ while :; do
 		echo '----------'
 
 		eval "$FULLCMD 1>$TMPCHECKLOG 2>$TMPCHECKERR";
-		if [ ! -z "$(cat $TMPCHECKERR)" ]; then echo -e "${ggcLightRed}ERROR: A critical error has occurred with synchronization and has been logged ($TMPCHECKERR).  Exiting.${ggcNC}" >&2; exit 1; fi
+		if [ ! -z "$(cat $TMPCHECKERR)" ]; then
+			`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$ansrUser@$ansrSrvr" "A critical error has occurred with synchronization."`
+			echo -e "${ggcLightRed}ERROR: A critical error has occurred with synchronization and has been logged ($TMPCHECKERR).  Exiting.${ggcNC}" >&2;
+			exit 1;
+		fi
 
 		# Update hash of directory listing
 		LSNEW=`cryptoHashCalc md5 string "$(ls -laR "$ansrSrc")"`
@@ -544,6 +569,7 @@ while :; do
 		END=$(date +%s)
 		DIFF=$(echo "$END - $START" | bc)
 
+		`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$ansrUser@$ansrSrvr" "Synchronization completed after $DIFF seconds."`
 		echo -e "`iso8601 LightCyan`: Synchronization completed after $DIFF seconds."
 
 		# Add grace period
@@ -567,6 +593,8 @@ while :; do
 		echo -e "`iso8601 LightCyan`: Exit request acknowledged.";
 		echo -e "`iso8601 LightCyan`: Removing log files:"
 		rm -rfv $TMPCHECKLOG $TMPCHECKERR
+
+		`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$ansrUser@$ansrSrvr" "Exit completed."`
 		echo -e "`iso8601 LightCyan`: Exit completed.";
 		exit 0;
 	fi
