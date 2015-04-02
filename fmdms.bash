@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504020753
+GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504020854
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 
@@ -522,7 +522,7 @@ while :; do
 		TRIGGERSYNC=false
 
 		# Pause until all saves have completed
-		`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$( isolate_dir_name "$ansrSrc" )" "There is a disturbance in the Force..."`
+		`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$( isolate_dir_name "$ansrSrc" ) ($ansrUser@$ansrSrvr)" "There is a disturbance in the Force..."`
 		echo -e "`iso8601 LightCyan`: There is a disturbance in the Force..."
 
 		while :; do
