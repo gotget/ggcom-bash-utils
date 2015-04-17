@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
-#
-# GGCOM - Bash - Utils - SSH Connector v201503210639
-# Louis T. Getterman IV (@LTGIV)
-# www.GotGetLLC.com | www.opensour.cc/ggcom/sshcon
-#
-# Example usage:
-# $] mkdir -pv ~/hosts/example.com
-# $] export PATH="${PATH}:$(find ~/hosts -type d | tr "\n" ":" | sed "s/:$//")" # Works great in ~/.bash_profile or ~/.bashrc
-# $] ln -s ~/ggcom/ggcom-bash-utils/sshcon.bash ~/hosts/example.com/exampleUserName
-# $] exampleUserName
-#
-# Thanks:
-# http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
-# http://unix.stackexchange.com/questions/34017/convert-linux-sysuptime-to-well-format-date
+: <<'!COMMENT'
+
+GGCOM - Bash - Utils - SSH Connector v201504162001
+Louis T. Getterman IV (@LTGIV)
+www.GotGetLLC.com | www.opensour.cc/ggcom/sshcon
+
+Example usage:
+$] mkdir -pv ~/hosts/example.com
+$] export PATH="${PATH}:$(find ~/hosts -type d | tr "\n" ":" | sed "s/:$//")" # Works great in ~/.bash_profile or ~/.bashrc
+$] ln -s ~/ggcom/ggcom-bash-utils/sshcon.bash ~/hosts/example.com/exampleUserName
+$] exampleUserName
+
+Thanks:
+http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
+http://unix.stackexchange.com/questions/34017/convert-linux-sysuptime-to-well-format-date
+
+!COMMENT
 
 ################################################################################
 SOURCE="${BASH_SOURCE[0]}" # Dave Dopson, Thank You! - http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in

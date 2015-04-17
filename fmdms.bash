@@ -1,22 +1,29 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504020854
+GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504162001
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 
 Example usage:
-export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10
-export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh --exclude=".DS_Store" --exclude=".git"'
-export FMDMSNOTIFYAPP='/usr/local/bin/growlnotify'
-export FMDMSNOTIFYARGS="--message '%message%' --title '%title%'"
-fmdms.bash [ [~/target/localPath | sessionID] [remoteUser@remoteHost:remotePath]]
+$] export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10
+$] export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh --exclude=".DS_Store" --exclude=".git"'
+$] export FMDMSNOTIFYAPP='/usr/local/bin/growlnotify'
+$] export FMDMSNOTIFYARGS="--message '%message%' --title '%title%'"
+$] fmdms.bash [ [~/target/localPath | sessionID] [remoteUser@remoteHost:remotePath]]
 
 !COMMENT
 
 ################################################################################
-SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
-SCRIPTNAME=`basename "$0"`
+SOURCE="${BASH_SOURCE[0]}" # Dave Dopson, Thank You! - http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  SCRIPTPATH="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$SCRIPTPATH/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+################################################################################
+SCRIPTPATH="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+SCRIPTNAME=`basename "$SOURCE"`
 LIBPATH="$( cd "$(dirname "${SCRIPTPATH}/../../")" ; pwd -P )/ggcom-bash-library"
 ################################################################################
 source "${LIBPATH}/varsBash.bash"

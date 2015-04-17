@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
-#
-# GGCOM - Bash - Utils - GotGet Common Interface v201503030651
-# Louis T. Getterman IV (@LTGIV)
-# www.GotGetLLC.com | www.opensour.cc/ggcom/interface
-#
-# Example usage:
-# ./ggcom.bash
+: <<'!COMMENT'
+
+GGCOM - Bash - Utils - GotGet Common Interface v201504162001
+Louis T. Getterman IV (@LTGIV)
+www.GotGetLLC.com | www.opensour.cc/ggcom/interface
+
+Example usage:
+ggcom.bash
+
+!COMMENT
 
 ################################################################################
-SCRIPTPATH=$( cd "$(dirname "$0")" ; pwd -P )
-SCRIPTNAME=`basename $0`
+SOURCE="${BASH_SOURCE[0]}" # Dave Dopson, Thank You! - http://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  SCRIPTPATH="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$SCRIPTPATH/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+################################################################################
+SCRIPTPATH="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+SCRIPTNAME=`basename "$SOURCE"`
 LIBPATH="$( cd "$(dirname "${SCRIPTPATH}/../../")" ; pwd -P )/ggcom-bash-library"
 ################################################################################
 source "${LIBPATH}/varsBash.bash"
