@@ -45,6 +45,7 @@ To-do:
 * multiple destinations
 * reverse synchronization with persistent tunnels
 * synchronization of different files from different locations all together and using delta/patch for quicker throughput
+* chown/chgrp for completed rsync (e.g. synchronizing from OSX to Linux with different UID/GID)
 
 !COMMENT
 
