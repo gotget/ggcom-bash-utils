@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201504162001
+GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201506210608
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 
@@ -11,6 +11,11 @@ $] export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --de
 $] export FMDMSNOTIFYAPP='/usr/local/bin/growlnotify'
 $] export FMDMSNOTIFYARGS="--message '%message%' --title '%title%'"
 $] fmdms.bash [ [~/target/localPath | sessionID] [remoteUser@remoteHost:remotePath]]
+
+Thanks:
+
+bash - Linux command to find files changed in last n seconds. - Super User
+http://superuser.com/questions/300246/linux-command-to-find-files-changed-in-last-n-seconds
 
 !COMMENT
 
@@ -162,6 +167,9 @@ HASHSRC=''
 
 # Interactive Session?
 INTERACTIVE=false
+
+# File that modification time is synchronized against
+FMDMSSYNCTIME=`mktemp 2>/dev/null || mktemp -t 'fmdms'`
 
 #------------------------------ Session File / Local Source / Input from argv[1]
 
@@ -524,7 +532,9 @@ while :; do
 	fi
 
 	# Changes within DIFF seconds have occurred.
-	TMPCHANGES=`find "$ansrSrc" -type f -mtime -"$DIFF"s`
+	touch -d "-${DIFF} seconds" "$FMDMSSYNCTIME"
+	TMPCHANGES=`find "$ansrSrc" -type f -newer "$FMDMSSYNCTIME"`
+
 	if [ ! -z "$TMPCHANGES" ] || [ "$TRIGGERSYNC" == true ]; then
 
 		TRIGGERSYNC=false
@@ -604,7 +614,7 @@ while :; do
 		echo;
 		echo -e "`iso8601 LightCyan`: Exit request acknowledged.";
 		echo -e "`iso8601 LightCyan`: Removing log files:"
-		rm -rfv $TMPCHECKLOG $TMPCHECKERR
+		rm -rfv "$TMPCHECKLOG" "$TMPCHECKERR" "$FMDMSSYNCTIME"
 
 		`notifyalert "$FMDMSNOTIFYAPP" "$FMDMSNOTIFYARGS" "$ansrUser@$ansrSrvr" "Exit completed."`
 		echo -e "`iso8601 LightCyan`: Exit completed.";
