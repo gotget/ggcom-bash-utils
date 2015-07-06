@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201506210608
+GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201507060458
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 
 Example usage:
 $] export FMDMSDIFFMTIME=5 FMDMSDIFFSETTLETIME=2 FMDMSDIFFLSTIME=10
-$] export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh --exclude=".DS_Store" --exclude=".git"'
+$] export FMDMSRSYNCARGS='--archive --verbose --progress --partial --delete --delete-excluded --no-owner --no-group --rsh=/usr/bin/ssh --exclude=".DS_Store" --exclude=".git"'
 $] export FMDMSNOTIFYAPP='/usr/local/bin/growlnotify'
 $] export FMDMSNOTIFYARGS="--message '%message%' --title '%title%'"
 $] fmdms.bash [ [~/target/localPath | sessionID] [remoteUser@remoteHost:remotePath]]
@@ -227,7 +227,7 @@ ansrDest=`parseUserHost "$ansrDestStr" path`
 
 #------------------------------ Rsync Options
 
-qstnRsyncMain='--archive --verbose --progress --partial --delete --delete-excluded --rsh=/usr/bin/ssh'
+qstnRsyncMain='--archive --verbose --progress --partial --delete --delete-excluded --no-owner --no-group --rsh=/usr/bin/ssh'
 ansrRsyncMain="$FMDMSRSYNCARGS"
 
 qstnRsyncExtra=''
