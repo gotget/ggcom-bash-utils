@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Hash v201507081149
+GGCOM - Bash - Utils - Hash v201507081231
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 
@@ -95,7 +95,7 @@ if [ -z "$2" ]; then	# STRING
 # This is absolutely not the way that I want to do this, but others are experiencing similar problems with newlines in read, which provides timeouts since cat doesn't:
 # http://www.dslreports.com/forum/r28406360-Reading-from-a-pipe-in-a-bash-script-with-timeout
 
-	TMPSTRINP=`mktemp 2>/dev/null || mktemp -t 'sync'`
+	TMPSTRINP=`mktemp 2>/dev/null || mktemp -t 'hash'`
 	cat > $TMPSTRINP
 	echo "`cryptoHashCalc "$1" file "$TMPSTRINP"`"
 	rm -rf TMPSTRINP
@@ -118,16 +118,18 @@ else					# FILE OR DIRECTORY
 	# List individual hashes of all files (except operating system files) in Key:Value CSV format
 	# Hash the cumulative output
 	elif [ -d "$2" ]; then
+		TMPSTRINP=`mktemp 2>/dev/null || mktemp -t 'hash'`
 		ORIGPWD="$PWD"
 		cd "$2"
-		echo -n "$(
-		find . -type f ! -name '.DS_Store' | sort |
+
+		printf "$(find . -type f ! -name '.DS_Store' | sort |
 		while listAllFiles= read -r f; do
-			echo "$f:$("${SCRIPTPATH}/${SCRIPTNAME}" "$1" "$f")"
-		done
-		)" | tr '\n' ',' | sed 's/,$//' | \
-		"${SCRIPTPATH}/${SCRIPTNAME}" "$1"
+			printf "$f:$("${SCRIPTPATH}/${SCRIPTNAME}" "$1" "$f"),"
+		done; )" | tr -d '\r' | tr -d '\n' | sed 's/,$//' 2>&1 > "$TMPSTRINP"
+		"${SCRIPTPATH}/${SCRIPTNAME}" "$1" "$TMPSTRINP"
+
 		cd "$ORIGPWD"
+		rm -rf "$TMPSTRINP"
 		exit 0
 
 	# UNKNOWN ERROR
