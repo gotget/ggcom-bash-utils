@@ -1,13 +1,31 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Hash v201504162001
+GGCOM - Bash - Utils - Hash v201507081128
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 
 Example usage:
 $] hash.bash sha1 ~/target/path/file
 $] echo -n "Hello World" | ./hash.bash sha1
+
+To-do:
+* Fix STDIN bug
+* Relating to STDIN bug, use different temporary location if mktemp's location doesn't have enough space
+
+Thanks:
+
+python - Linux: compute a single hash for a given folder & contents? - Stack Overflow
+http://stackoverflow.com/questions/545387/linux-compute-a-single-hash-for-a-given-folder-contents
+
+bash - sha1sum for a directory of directories - Super User
+http://superuser.com/questions/458326/sha1sum-for-a-directory-of-directories
+
+osx - execute a command in all subdirectories bash - Super User
+http://superuser.com/questions/608286/execute-a-command-in-all-subdirectories-bash
+
+file - Bash: Recursively adding subdirectories to the path - Stack Overflow
+https://stackoverflow.com/questions/657108/bash-recursively-adding-subdirectories-to-the-path
 
 !COMMENT
 
@@ -29,6 +47,7 @@ source "${LIBPATH}/version.bash"
 ################################################################################
 source "${LIBPATH}/prompt.bash"
 source "${LIBPATH}/crypto.bash"
+source "${LIBPATH}/colors.bash"
 ################################################################################
 
 #----- NOTICE: INFO
@@ -41,7 +60,7 @@ source "${LIBPATH}/crypto.bash"
 
 #----- CHECK FOR HASH
 if [ -z "$1" ]; then
-	echo "No hash specified.  Common uses are MD5 or SHA1." >&2
+	echo -e "${ggcLightRed}No hash specified.  Common uses are MD5 or SHA1.${ggcNC}" >&2
 	exit 1
 fi
 #-----/CHECK FOR HASH
@@ -81,14 +100,39 @@ if [ -z "$2" ]; then	# STRING
 	echo "`cryptoHashCalc "$1" file "$TMPSTRINP"`"
 	rm -rf TMPSTRINP
 
-else					# FILE
+else					# FILE OR DIRECTORY
 
-	if [ ! -f "$2" ]; then
-		echo "File does not exist." >&2
+	# TARGET DOES NOT EXIST
+	if [ ! -f "$2" ] && [ ! -d "$2" ]; then
+		echo -e "${ggcLightRed}Target does not exist.${ggcNC}" >&2
 		exit 1
-	fi
 
-	echo "`cryptoHashCalc "$1" file "$2"`"
+	# FILE
+	elif [ -f "$2" ]; then
+		echo "`cryptoHashCalc "$1" file "$2"`"
+		exit 0
+
+	# DIRECTORY - this method is entirely up for debate
+	# the tar method would yield a completely different hash value, possibly on separate machines of same content
+	# I tried to stick with a method that's as reproducible as possible with minimal size (due to the aforementioned STDIN bug), regardless of system:
+	# List individual hashes of all files (except operating system files) in Key:Value CSV format
+	# Hash the cumulative output
+	elif [ -d "$2" ]; then
+		echo -n "$(
+		find "`mod_trail_slash rem "$( cd -P "$2" && pwd )"`" -type f ! -name '.DS_Store' | sort |
+		while listAllFiles= read -r f; do
+			echo "$f:$("${SCRIPTPATH}/${SCRIPTNAME}" "$1" "$f")"
+		done
+		)" | tr '\n' ',' | sed 's/,$//' | \
+		"${SCRIPTPATH}/${SCRIPTNAME}" "$1"
+		exit 0
+
+	# UNKNOWN ERROR
+	else
+		echo -e "${ggcLightRed}An unknown error has occurred.${ggcNC}" >&2
+		exit 1
+
+	fi
 
 fi
 
