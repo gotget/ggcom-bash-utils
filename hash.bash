@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Hash v201507081231
+GGCOM - Bash - Utils - Hash v201507081311
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 
@@ -126,7 +126,9 @@ else					# FILE OR DIRECTORY
 		while listAllFiles= read -r f; do
 			printf "$f:$("${SCRIPTPATH}/${SCRIPTNAME}" "$1" "$f"),"
 		done; )" | tr -d '\r' | tr -d '\n' | sed 's/,$//' 2>&1 > "$TMPSTRINP"
-		"${SCRIPTPATH}/${SCRIPTNAME}" "$1" "$TMPSTRINP"
+
+		# Dealing with OSX-based issue in erroneously adding newline, thus messing up the hash
+		printf `cat "$TMPSTRINP"` | "${SCRIPTPATH}/${SCRIPTNAME}" "$1"
 
 		cd "$ORIGPWD"
 		rm -rf "$TMPSTRINP"
