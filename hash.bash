@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Hash v201507081128
+GGCOM - Bash - Utils - Hash v201507081149
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 
@@ -118,13 +118,16 @@ else					# FILE OR DIRECTORY
 	# List individual hashes of all files (except operating system files) in Key:Value CSV format
 	# Hash the cumulative output
 	elif [ -d "$2" ]; then
+		ORIGPWD="$PWD"
+		cd "$2"
 		echo -n "$(
-		find "`mod_trail_slash rem "$( cd -P "$2" && pwd )"`" -type f ! -name '.DS_Store' | sort |
+		find . -type f ! -name '.DS_Store' | sort |
 		while listAllFiles= read -r f; do
 			echo "$f:$("${SCRIPTPATH}/${SCRIPTNAME}" "$1" "$f")"
 		done
 		)" | tr '\n' ',' | sed 's/,$//' | \
 		"${SCRIPTPATH}/${SCRIPTNAME}" "$1"
+		cd "$ORIGPWD"
 		exit 0
 
 	# UNKNOWN ERROR
