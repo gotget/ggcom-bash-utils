@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Hash v201507100918
+GGCOM - Bash - Utils - Hash v201507101115
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 
@@ -237,15 +237,15 @@ else					# FILE OR DIRECTORY
 		fi
 
 		# Create array of files to work through, and more importantly, show when the verbose flag is set
-		# Hideous sorting technique has to be done due to the way that OSX differs from Linux on UTF-8
 		if [ "$valVerbose" = True ]; then
 			echo -e "${ggcLightPurple}Scanning files:${ggcNC}"
 		fi
-		unset FILEHASHLIST i f
 
-		while IFS= read -r f; do
+		# Hideous sorting technique has to be done due to the way that OSX differs from Linux on UTF-8
+		unset FILEHASHLIST i f
+		while IFS= read -r -d $'\0' f; do
 			FILEHASHLIST[i++]="$f"
-		done < <( find . -type f ! -name '.DS_Store' | python -c 'import sys; sys.stdout.write("\0".join(sorted(sys.stdin.read().split("\0"),key=lambda s: s.lower())))' )
+		done < <( python -c "import os, sys; fdl=os.listdir('.'); sys.stdout.write('\0'.join( sorted( [x for x in fdl if x not in ['.DS_Store']], key=lambda s: s.lower() ) )+'\0' )" )
 		unset i f
 
 		fileItems=${#FILEHASHLIST[@]}
