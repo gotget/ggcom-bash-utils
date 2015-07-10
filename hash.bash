@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Hash v201507101115
+GGCOM - Bash - Utils - Hash v201507101140
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 
@@ -245,7 +245,7 @@ else					# FILE OR DIRECTORY
 		unset FILEHASHLIST i f
 		while IFS= read -r -d $'\0' f; do
 			FILEHASHLIST[i++]="$f"
-		done < <( python -c "import os, sys; fdl=os.listdir('.'); sys.stdout.write('\0'.join( sorted( [x for x in fdl if x not in ['.DS_Store']], key=lambda s: s.lower() ) )+'\0' )" )
+		done < <( python -c "import os, sys; fdl=[os.path.join(dp, f) for dp, dn, filenames in os.walk('.') for f in filenames]; sys.stdout.write('\0'.join( sorted( [ x for x in fdl if os.path.basename(x) not in [ '.DS_Store', 'Icon\r' ] ], key=lambda s: s.lower() ) )+'\0' )" )
 		unset i f
 
 		fileItems=${#FILEHASHLIST[@]}
