@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Hash v201507081311
+GGCOM - Bash - Utils - Hash v201507100847
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 
@@ -30,6 +30,15 @@ https://stackoverflow.com/questions/657108/bash-recursively-adding-subdirectorie
 
 Capturing output of find . -print0 into a bash array - Stack Overflow
 http://stackoverflow.com/questions/1116992/capturing-output-of-find-print0-into-a-bash-array
+
+osx - Why does UTF-8 text sort in different order between OS X and Linux? - Stack Overflow
+http://stackoverflow.com/questions/27395317/why-does-utf-8-text-sort-in-different-order-between-os-x-and-linux
+
+shell - Sorting the output of "find"? - Unix & Linux Stack Exchange
+http://unix.stackexchange.com/questions/34325/sorting-the-output-of-find
+
+python - case-insensitive list sorting, without lowercasing the result? - Stack Overflow
+http://stackoverflow.com/questions/10269701/case-insensitive-list-sorting-without-lowercasing-the-result
 
 !COMMENT
 
@@ -225,13 +234,14 @@ else					# FILE OR DIRECTORY
 		fi
 
 		# Create array of files to work through, and more importantly, show when the verbose flag is set
+		# Hideous sorting technique has to be done due to the way that OSX differs from Linux on UTF-8
 		if [  "$valVerbose" = True ]; then
 			echo -e "${ggcLightPurple}Scanning files:${ggcNC}"
 		fi
 		unset FILEHASHLIST i f
 		while IFS= read -r -d $'\0' f; do
 			FILEHASHLIST[i++]="$f"
-		done < <( find . -type f ! -name '.DS_Store' -print0 | sort -t '\0' -n )
+		done < <( find . -type f ! -name '.DS_Store' -print0 | python -c 'import sys; sys.stdout.write("\0".join(sorted(sys.stdin.read().split("\0"),key=lambda s: s.lower())))' )
 		unset i f
 
 		fileItems=${#FILEHASHLIST[@]}
