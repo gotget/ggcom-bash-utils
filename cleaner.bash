@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Cleaner v201505312254
+GGCOM - Bash - Utils - Cleaner v201507100702
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/cleaner
 
@@ -49,43 +49,65 @@ source "${LIBPATH}/prompt.bash"
 source "${LIBPATH}/colors.bash"
 ################################################################################
 
-#------------------------------ NOTICE: INFO
-echo `str_repeat - 80`
-echo "`getVersion "$0" header`"
-echo `str_repeat - 80`
-#------------------------------ /NOTICE: INFO
-
 #------------------------------ Variables
-# Path, which defaults to present working directory
-pathSelect='./'
-
-# File pattern to clean
-extSelect='*.pyc'
-
-# Silent Mode (can be turned on with --silent)
-silentMode=false
-
 #----- Options
-while :; do
-	case "$1" in
+# Array of arguments that we will pass and parse
+ARGSN=$#
+ARGSA=()
+for var in "$@"; do ARGSA+=("$var"); done;
 
-		--path=?*) pathSelect=${1#*=} ;;
-
-		--pattern=?*) extSelect=${1#*=} ;;
-
-		--silent) silentMode=true ;;
-
-		*)	# Default case: If no more options then break out of the loop.
-			break
-
-	esac
-
-	shift
-done
-
+# Target Path
+[ ! -z "`parseArgs "${ARGSA[@]}" "-t"`" ] && pathSelect="`parseArgs "${ARGSA[@]}" "-t"`" || pathSelect="`parseArgs "${ARGSA[@]}" "--target"`"
+if [ -z "$pathSelect" ]; then pathSelect='./'; fi
 pathSelect=`mod_trail_slash add "${pathSelect}"`
 
+# Pattern
+[ ! -z "`parseArgs "${ARGSA[@]}" "-p"`" ] && extSelect="`parseArgs "${ARGSA[@]}" "-p"`" || extSelect="`parseArgs "${ARGSA[@]}" "--pattern"`"
+if [ -z "$extSelect" ]; then extSelect='*.pyc'; fi
+
+# Silent
+[ ! -z "`parseArgs "${ARGSA[@]}" "-s"`" ] && silentMode="`parseArgs "${ARGSA[@]}" "-s"`" || silentMode="`parseArgs "${ARGSA[@]}" "--silent"`"
+if [ "$silentMode" != True ]; then silentMode=False; fi
+
+# Version
+if [ "`parseArgs "${ARGSA[@]}" "--version"`" = True ]; then valVersion=True; fi
+
+# Help Menu
+[ ! -z "`parseArgs "${ARGSA[@]}" "-h"`" ] && valHelp="`parseArgs "${ARGSA[@]}" "-h"`" || valHelp="`parseArgs "${ARGSA[@]}" "--help"`"
+if [ "`parseArgs "${ARGSA[@]}" "-?"`" = True ]; then valHelp=True; fi
+
+showHeader=True
 #-----/Options
+
+#----- NOTICE: VERSION
+if [ "$valVersion" = True ]; then
+	echo "`getVersion $0 number`"
+	exit 0
+fi
+
+if [ "$showHeader" = True ]; then
+	echo "`getVersion $0 header`"
+	echo;
+fi
+#-----/NOTICE: VERSION
+
+#----- NOTICE: HELP INFO
+if [ "$valHelp" = True ]; then
+read -r -d '' HELPMENU <<EOF
+Usage: $SCRIPTNAME [OPTIONS]... ALGORITHM TARGET
+  or   $SCRIPTNAME [OPTIONS]
+
+Options
+ -t, --target                target to hash (file or directory)
+ -p, --pattern               file pattern to match for deletion (default is "${extSelect}")
+ -s, --silent                increase verbosity
+     --version               print version number
+(-h) --help                  show this help (-h is --help only if used alone)
+EOF
+	echo "$HELPMENU"
+	exit 0
+fi
+#-----/NOTICE: HELP INFO
 
 #----- List of files that match our path and pattern
 fileListMatchOutput=`mktemp 2>/dev/null || mktemp -t 'fmdms'`
@@ -120,7 +142,7 @@ if [ ! -z "$fileList" ]; then
 	echo -e "${ggcCyan}`echo "${fileList}" | perl -pe 's{^}{\"};s{$}{\"}' | xargs ls -ld`${ggcNC}";
 
 	# Confirmation message, along with reminder about silent mode
-	if [ "$silentMode" != true ]; then
+	if [ "$silentMode" != True ]; then
 		echo;
 		echo -e "${ggcLightRed}This is a destructive action. Press enter to confirm, or CTRL-C to cancel.${ggcNC}"
 		echo -e "${ggcLightBlue}You can disable this warning with --silent${ggcNC}"

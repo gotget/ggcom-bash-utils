@@ -12,6 +12,7 @@ $] echo -n "Hello World" | ./hash.bash sha1
 To-do:
 * Fix STDIN bug
 * Relating to STDIN bug, use different temporary location if mktemp's location doesn't have enough space
+* OSX adding newline characters for hashing directories; temporary workaround is printf cat.
 
 Thanks:
 
@@ -26,6 +27,9 @@ http://superuser.com/questions/608286/execute-a-command-in-all-subdirectories-ba
 
 file - Bash: Recursively adding subdirectories to the path - Stack Overflow
 https://stackoverflow.com/questions/657108/bash-recursively-adding-subdirectories-to-the-path
+
+Capturing output of find . -print0 into a bash array - Stack Overflow
+http://stackoverflow.com/questions/1116992/capturing-output-of-find-print0-into-a-bash-array
 
 !COMMENT
 
@@ -50,25 +54,118 @@ source "${LIBPATH}/crypto.bash"
 source "${LIBPATH}/colors.bash"
 ################################################################################
 
-#----- NOTICE: INFO
-#echo "`getVersion $0 header`"
-#echo "SHA1/MD5: <CHECK>"
-#echo "OpenSSL: <CHECK>"
-#echo "GPG: <CHECK>"
-#echo;
-#-----/NOTICE: INFO
+#------------------------------ Options and Variables
+
+# Array of arguments that we will pass and parse
+ARGSN=$#
+ARGSA=()
+for var in "$@"; do ARGSA+=("$var"); done;
+
+# Verbosity
+[ ! -z "`parseArgs "${ARGSA[@]}" "-v"`" ] && valVerbose="`parseArgs "${ARGSA[@]}" "-v"`" || valVerbose="`parseArgs "${ARGSA[@]}" "--verbose"`"
+
+# Algorithm
+[ ! -z "`parseArgs "${ARGSA[@]}" "-a"`" ] && valAlg="`parseArgs "${ARGSA[@]}" "-a"`" || valAlg="`parseArgs "${ARGSA[@]}" "--algorithm"`"
+
+# Target
+[ ! -z "`parseArgs "${ARGSA[@]}" "-t"`" ] && valTarget="`parseArgs "${ARGSA[@]}" "-t"`" || valTarget="`parseArgs "${ARGSA[@]}" "--target"`"
+
+# Version
+if [ "`parseArgs "${ARGSA[@]}" "--version"`" = True ]; then valVersion=True; fi
+
+# Help Menu
+[ ! -z "`parseArgs "${ARGSA[@]}" "-h"`" ] && valHelp="`parseArgs "${ARGSA[@]}" "-h"`" || valHelp="`parseArgs "${ARGSA[@]}" "--help"`"
+if [ "`parseArgs "${ARGSA[@]}" "-?"`" = True ]; then valHelp=True; fi
+
+# Show header?
+showHeader=False
+if [ "$valVerbose" = True ] || [ "$valHelp" = True ]; then
+	showHeader=True
+fi
+
+#----- Default Values
+TMPARGCOUNT=0
+for var in "${ARGSA[@]}"; do
+	if [ "${var:0:1}" = '-' ]; then
+		continue
+	fi
+	((TMPARGCOUNT++))
+	case "$TMPARGCOUNT" in
+		1)
+			valAlg="$var"
+			;;
+		2)
+			valTarget="$var"
+			;;
+	esac
+done;
+unset TMPARGCOUNT var
+#-----/Default Values
+
+#----- NOTICE: VERSION
+if [ "$valVersion" = True ]; then
+	echo "`getVersion $0 number`"
+	exit 0
+fi
+
+if [ "$showHeader" = True ]; then
+	echo "`getVersion $0 header`"
+	echo;
+fi
+#-----/NOTICE: VERSION
+
+#----- VERBOSITY: ARGUMENTS
+if [  "$valVerbose" = True ]; then
+	for var in "${ARGSA[@]}"; do echo -e "${ggcLightPurple}Supplied argument:${ggcNC} ${ggcLightBlue}${var}${ggcNC}"; done;
+	echo;
+fi
+unset var
+#-----/VERBOSITY: ARGUMENTS
+
+#----- NOTICE: HELP INFO
+if [ "$valHelp" = True ]; then
+	echo -e "${ggcLightPurple}Hash candidate      :${ggcNC} ${ggcLightBlue}`cryptoHashCandidate "$valAlg"`${ggcNC}"
+	echo -en "${ggcLightPurple}Post hash arguments :${ggcNC} ${ggcLightBlue}"
+	echo -n `cryptoHashCandidatePost "$valAlg"`
+	echo -e "${ggcNC}"
+	echo;
+read -r -d '' HELPMENU <<EOF
+Usage: $SCRIPTNAME [OPTIONS]... ALGORITHM TARGET
+  or   $SCRIPTNAME [OPTIONS]
+
+Options
+ -a, --algorithm             hashing algorithm (Common are 'CK' (CRC-32), 'MD5', or 'SHA1')
+ -t, --target                target to hash (file or directory)
+ -v, --verbose               increase verbosity
+     --version               print version number
+(-h) --help                  show this help (-h is --help only if used alone)
+EOF
+	echo "$HELPMENU"
+	exit 0
+fi
+#-----/NOTICE: HELP INFO
 
 #----- CHECK FOR HASH
-if [ -z "$1" ]; then
-	echo -e "${ggcLightRed}No hash specified.  Common uses are MD5 or SHA1.${ggcNC}" >&2
+if [ -z "$valAlg" ]; then
+	echo -e "${ggcLightRed}No hash algorithm specified.  Common uses are 'CK' (CRC-32), 'MD5', or 'SHA1'.${ggcNC}" >&2
 	exit 1
 fi
+
+TMPHASHCHECK="`cryptoHashCalc "$valAlg" test`"
+if [ ! -z "$TMPHASHCHECK" ]; then
+	echo -e "${ggcLightRed}It appears that your hash selection ('$valAlg') is invalid.  Common uses are 'CK' (CRC-32), 'MD5', or 'SHA1'.${ggcNC}" >&2
+	echo -e "The specific error message was: ${ggcLightPurple}$TMPHASHCHECK${ggcNC}" >&2
+	exit 1
+fi
+unset TMPHASHCHECK
 #-----/CHECK FOR HASH
+
+#------------------------------/Options and Variables
 
 #----- HASH OUTPUT
 
 # Checks STDIN vs FILE ARGUMENT
-if [ -z "$2" ]; then	# STRING
+if [ -z "$valTarget" ]; then	# STRING
 
 # Failed Attempt #1
 #	read -r -t 1 STDINP1
@@ -76,7 +173,7 @@ if [ -z "$2" ]; then	# STRING
 #		stringInput="$STDINP1"
 #		stringInput+=`cat`
 #	else
-#		echo "No hash specified for file '$1'.  Common uses are MD5 or SHA1." >&2
+#		echo "No hash specified for file '$valAlg'.  Common uses are MD5 or SHA1." >&2
 #		exit 1
 #	fi
 
@@ -90,45 +187,88 @@ if [ -z "$2" ]; then	# STRING
 #		fi
 #	done
 
-#	echo "`cryptoHashCalc "$1" string "$strInp"`"
+#	echo "`cryptoHashCalc "$valAlg" string "$strInp"`"
 
 # This is absolutely not the way that I want to do this, but others are experiencing similar problems with newlines in read, which provides timeouts since cat doesn't:
 # http://www.dslreports.com/forum/r28406360-Reading-from-a-pipe-in-a-bash-script-with-timeout
 
 	TMPSTRINP=`mktemp 2>/dev/null || mktemp -t 'hash'`
 	cat > $TMPSTRINP
-	echo "`cryptoHashCalc "$1" file "$TMPSTRINP"`"
+	echo "`cryptoHashCalc "$valAlg" file "$TMPSTRINP"`"
 	rm -rf TMPSTRINP
 
 else					# FILE OR DIRECTORY
 
 	# TARGET DOES NOT EXIST
-	if [ ! -f "$2" ] && [ ! -d "$2" ]; then
+	if [ ! -f "$valTarget" ] && [ ! -d "$valTarget" ]; then
 		echo -e "${ggcLightRed}Target does not exist.${ggcNC}" >&2
 		exit 1
 
 	# FILE
-	elif [ -f "$2" ]; then
-		echo "`cryptoHashCalc "$1" file "$2"`"
+	elif [ -f "$valTarget" ]; then
+		echo "`cryptoHashCalc "$valAlg" file "$valTarget"`"
 		exit 0
 
 	# DIRECTORY - this method is entirely up for debate
 	# the tar method would yield a completely different hash value, possibly on separate machines of same content
-	# I tried to stick with a method that's as reproducible as possible with minimal size (due to the aforementioned STDIN bug), regardless of system:
+	# I tried to stick with a method that's as reproducible as possible with minimal cache size (due to the aforementioned STDIN bug), regardless of system:
 	# List individual hashes of all files (except operating system files) in Key:Value CSV format
 	# Hash the cumulative output
-	elif [ -d "$2" ]; then
+	elif [ -d "$valTarget" ]; then
 		TMPSTRINP=`mktemp 2>/dev/null || mktemp -t 'hash'`
 		ORIGPWD="$PWD"
-		cd "$2"
+		cd "$valTarget"
 
-		printf "$(find . -type f ! -name '.DS_Store' | sort |
-		while listAllFiles= read -r f; do
-			printf "$f:$("${SCRIPTPATH}/${SCRIPTNAME}" "$1" "$f"),"
-		done; )" | tr -d '\r' | tr -d '\n' | sed 's/,$//' 2>&1 > "$TMPSTRINP"
+		if [  "$valVerbose" = True ]; then
+			echo -e "${ggcLightPurple}Cumulative hash cache:${ggcNC} ${ggcLightBlue}${TMPSTRINP}${ggcNC}"
+			echo;
+		fi
+
+		# Create array of files to work through, and more importantly, show when the verbose flag is set
+		if [  "$valVerbose" = True ]; then
+			echo -e "${ggcLightPurple}Scanning files:${ggcNC}"
+		fi
+		unset FILEHASHLIST i f
+		while IFS= read -r -d $'\0' f; do
+			FILEHASHLIST[i++]="$f"
+		done < <( find . -type f ! -name '.DS_Store' -print0 | sort -t '\0' -n )
+		unset i f
+
+		fileItems=${#FILEHASHLIST[@]}
+		countFile=1
+		for fileItem in "${FILEHASHLIST[@]}"; do
+
+			if [  "$valVerbose" = True ]; then printf "($countFile/$fileItems = $(bc <<< "scale=1; ($countFile*100/$fileItems)") %%) ${fileItem}:"; fi
+
+			hashItem="$( "${SCRIPTPATH}/${SCRIPTNAME}" "$valAlg" "$fileItem" )"
+
+			if [  "$valVerbose" = True ]; then printf "${hashItem}\n"; fi
+
+			printf "${fileItem}:${hashItem}" >> "$TMPSTRINP"
+
+			# Comma separator if not last entry
+			if [ $countFile -lt $fileItems ]; then printf "," >> "$TMPSTRINP"; fi
+
+			(( countFile++ ))
+
+		done; # END: for fileItem in "${FILEHASHLIST[@]}"
+		unset FILEHASHLIST fileItems countFile fileItem
 
 		# Dealing with OSX-based issue in erroneously adding newline, thus messing up the hash
-		printf `cat "$TMPSTRINP"` | "${SCRIPTPATH}/${SCRIPTNAME}" "$1"
+		# cache="$( cat "$TMPSTRINP" | tr -d '\r' | tr -d '\n' | sed 's/,$//' )" # Can be used to clean-up the cache file
+		hashCache="$( "${SCRIPTPATH}/${SCRIPTNAME}" "$valAlg" "$TMPSTRINP" )"
+
+		if [  "$valVerbose" = True ]; then
+			echo;
+			echo -e "${ggcLightPurple}Directory Cache:${ggcNC}"
+			cat "$TMPSTRINP"
+			echo;
+			echo;
+			echo -e "${ggcLightPurple}Directory Cache Hash:${ggcNC}"
+			echo -e "${ggcLightBlue}${hashCache}${ggcNC}"
+		else
+			echo "${hashCache}"
+		fi
 
 		cd "$ORIGPWD"
 		rm -rf "$TMPSTRINP"
