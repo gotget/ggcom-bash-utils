@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Hash v201507100847
+GGCOM - Bash - Utils - Hash v201507100918
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 
@@ -30,6 +30,9 @@ https://stackoverflow.com/questions/657108/bash-recursively-adding-subdirectorie
 
 Capturing output of find . -print0 into a bash array - Stack Overflow
 http://stackoverflow.com/questions/1116992/capturing-output-of-find-print0-into-a-bash-array
+
+linux - How to do for each file using find in shell/bash? - Stack Overflow
+http://stackoverflow.com/questions/15065010/how-to-do-for-each-file-using-find-in-shell-bash
 
 osx - Why does UTF-8 text sort in different order between OS X and Linux? - Stack Overflow
 http://stackoverflow.com/questions/27395317/why-does-utf-8-text-sort-in-different-order-between-os-x-and-linux
@@ -235,20 +238,21 @@ else					# FILE OR DIRECTORY
 
 		# Create array of files to work through, and more importantly, show when the verbose flag is set
 		# Hideous sorting technique has to be done due to the way that OSX differs from Linux on UTF-8
-		if [  "$valVerbose" = True ]; then
+		if [ "$valVerbose" = True ]; then
 			echo -e "${ggcLightPurple}Scanning files:${ggcNC}"
 		fi
 		unset FILEHASHLIST i f
-		while IFS= read -r -d $'\0' f; do
+
+		while IFS= read -r f; do
 			FILEHASHLIST[i++]="$f"
-		done < <( find . -type f ! -name '.DS_Store' -print0 | python -c 'import sys; sys.stdout.write("\0".join(sorted(sys.stdin.read().split("\0"),key=lambda s: s.lower())))' )
+		done < <( find . -type f ! -name '.DS_Store' | python -c 'import sys; sys.stdout.write("\0".join(sorted(sys.stdin.read().split("\0"),key=lambda s: s.lower())))' )
 		unset i f
 
 		fileItems=${#FILEHASHLIST[@]}
 		countFile=1
 		for fileItem in "${FILEHASHLIST[@]}"; do
 
-			if [  "$valVerbose" = True ]; then printf "($countFile/$fileItems = $(bc <<< "scale=1; ($countFile*100/$fileItems)") %%) ${fileItem}:"; fi
+			if [ "$valVerbose" = True ]; then printf "($countFile/$fileItems = $(bc <<< "scale=1; ($countFile*100/$fileItems)") %%) ${fileItem}:"; fi
 
 			hashItem="$( "${SCRIPTPATH}/${SCRIPTNAME}" "$valAlg" "$fileItem" )"
 
