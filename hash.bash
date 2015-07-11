@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Hash v201507101140
+GGCOM - Bash - Utils - Hash v201507111357
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/hashbash
 
@@ -42,6 +42,9 @@ http://unix.stackexchange.com/questions/34325/sorting-the-output-of-find
 
 python - case-insensitive list sorting, without lowercasing the result? - Stack Overflow
 http://stackoverflow.com/questions/10269701/case-insensitive-list-sorting-without-lowercasing-the-result
+
+Recursive sub folder search and return files in a list python - Stack Overflow
+http://stackoverflow.com/questions/18394147/recursive-sub-folder-search-and-return-files-in-a-list-python
 
 !COMMENT
 
@@ -227,46 +230,66 @@ else					# FILE OR DIRECTORY
 	# List individual hashes of all files (except operating system files) in Key:Value CSV format
 	# Hash the cumulative output
 	elif [ -d "$valTarget" ]; then
-		TMPSTRINP=`mktemp 2>/dev/null || mktemp -t 'hash'`
 		ORIGPWD="$PWD"
 		cd "$valTarget"
 
+		# Create array of files to work through, and more importantly, show when the verbose flag is set
+		if [ "$valVerbose" = True ]; then echo -n -e "${ggcLightPurple}Scanning for entries:${ggcNC} "; fi
+
+		# Hideous sorting technique has to be done due to the way that -nix systems (e.g. OSX and Linux) differ from each other on UTF-8 and sorting
+		# Check git history to see the various attempts I was making with combinations of `find` piped to `sort`
+		unset fileItems i f
+		while IFS= read -r -d $'\0' f; do
+
+			# Skip: invalid file entry
+			if [ -z "${f}" ] || [ ! -f "${f}" ]; then continue; fi
+
+			fileItems[i++]="$f"
+		done < <( python -c "import os, sys; fdl=[os.path.join(dp, f) for dp, dn, filenames in os.walk('.') for f in filenames]; sys.stdout.write('\0'.join( sorted( [ x for x in fdl if os.path.basename(x) not in [ '.DS_Store', 'Icon\r' ] ], key=lambda s: s.lower() ) )+'\0' )" )
+		unset i f
+
+		# Total size of array
+		fileItemSize=${#fileItems[@]}
+
+		# Display count
+		if [ "$valVerbose" = True ]; then echo -e "${ggcLightBlue}${fileItemSize}${ggcNC} "; echo; fi
+
+		# Directory contains 0 (nested) files.
+		if [ "$fileItemSize" -eq 0 ]; then
+			echo -e "${ggcLightRed}There are no (nested) files in directory '${valTarget}' to check.  Exiting.${ggcNC}" >&2
+			exit 1
+		fi
+
+		TMPSTRINP=`mktemp 2>/dev/null || mktemp -t 'hash'`
 		if [  "$valVerbose" = True ]; then
 			echo -e "${ggcLightPurple}Cumulative hash cache:${ggcNC} ${ggcLightBlue}${TMPSTRINP}${ggcNC}"
 			echo;
 		fi
 
-		# Create array of files to work through, and more importantly, show when the verbose flag is set
-		if [ "$valVerbose" = True ]; then
-			echo -e "${ggcLightPurple}Scanning files:${ggcNC}"
-		fi
+		if [ "$valVerbose" = True ]; then echo -e "${ggcLightPurple}Processing queue:${ggcNC} "; fi
 
-		# Hideous sorting technique has to be done due to the way that OSX differs from Linux on UTF-8
-		unset FILEHASHLIST i f
-		while IFS= read -r -d $'\0' f; do
-			FILEHASHLIST[i++]="$f"
-		done < <( python -c "import os, sys; fdl=[os.path.join(dp, f) for dp, dn, filenames in os.walk('.') for f in filenames]; sys.stdout.write('\0'.join( sorted( [ x for x in fdl if os.path.basename(x) not in [ '.DS_Store', 'Icon\r' ] ], key=lambda s: s.lower() ) )+'\0' )" )
-		unset i f
-
-		fileItems=${#FILEHASHLIST[@]}
 		countFile=1
-		for fileItem in "${FILEHASHLIST[@]}"; do
+		for fileItem in "${fileItems[@]}"; do
 
-			if [ "$valVerbose" = True ]; then printf "($countFile/$fileItems = $(bc <<< "scale=1; ($countFile*100/$fileItems)") %%) ${fileItem}:"; fi
+			if [ "$valVerbose" = True ]; then printf "($countFile/$fileItemSize = $(bc <<< "scale=1; ($countFile*100/$fileItemSize)") %%) ${fileItem}:"; fi
 
 			hashItem="$( "${SCRIPTPATH}/${SCRIPTNAME}" "$valAlg" "$fileItem" )"
+			if [ $? -ne 0 ]; then
+				(( fileItemSize-- ))
+				continue
+			fi
 
 			if [  "$valVerbose" = True ]; then printf "${hashItem}\n"; fi
 
 			printf "${fileItem}:${hashItem}" >> "$TMPSTRINP"
 
 			# Comma separator if not last entry
-			if [ $countFile -lt $fileItems ]; then printf "," >> "$TMPSTRINP"; fi
+			if [ $countFile -lt $fileItemSize ]; then printf "," >> "$TMPSTRINP"; fi
 
 			(( countFile++ ))
 
-		done; # END: for fileItem in "${FILEHASHLIST[@]}"
-		unset FILEHASHLIST fileItems countFile fileItem
+		done; # END: for fileItem in "${fileItems[@]}"
+		unset fileItems fileItemSize countFile fileItem
 
 		# Dealing with OSX-based issue in erroneously adding newline, thus messing up the hash
 		# cache="$( cat "$TMPSTRINP" | tr -d '\r' | tr -d '\n' | sed 's/,$//' )" # Can be used to clean-up the cache file
@@ -278,7 +301,7 @@ else					# FILE OR DIRECTORY
 			cat "$TMPSTRINP"
 			echo;
 			echo;
-			echo -e "${ggcLightPurple}Directory Cache Hash:${ggcNC}"
+			echo -e "${ggcLightPurple}Directory '${valTarget}' Cache Hash:${ggcNC}"
 			echo -e "${ggcLightBlue}${hashCache}${ggcNC}"
 		else
 			echo "${hashCache}"
