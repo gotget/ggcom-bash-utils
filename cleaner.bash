@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Cleaner v201507100702
+GGCOM - Bash - Utils - Cleaner v201508012114
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/cleaner
 
@@ -94,8 +94,7 @@ fi
 #----- NOTICE: HELP INFO
 if [ "$valHelp" = True ]; then
 read -r -d '' HELPMENU <<EOF
-Usage: $SCRIPTNAME [OPTIONS]... ALGORITHM TARGET
-  or   $SCRIPTNAME [OPTIONS]
+Usage: $SCRIPTNAME [OPTIONS]... (-p|--pattern)=PATTERN (-t|--target)=TARGET
 
 Options
  -t, --target                target to hash (file or directory)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM Application Version Checker v201504162001
+GGCOM Application Version Checker v201507120415
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/versions
 
@@ -26,13 +26,18 @@ source "${LIBPATH}/varsBash.bash"
 source "${LIBPATH}/string.bash"
 source "${LIBPATH}/version.bash"
 ################################################################################
-#
+source "${LIBPATH}/colors.bash"
 ################################################################################
 
 GGCOMAPP=${1-$0}
 VERTYPE=${2-header}
 
 # No such file
-if [ ! -f $GGCOMAPP ]; then echo "No such file ($GGCOMAPP).  Exiting." >&2; exit 1; fi
+if [ ! -f $GGCOMAPP ]; then echo -e "${ggcLightRed}No such file ($GGCOMAPP).  Exiting.${ggcNC}" >&2; exit 1; fi
 
-echo "`getVersion "$GGCOMAPP" "$VERTYPE"`"
+OUTPUT="`getVersion "$GGCOMAPP" "$VERTYPE"`"
+
+# No version information found
+if [ -z "${OUTPUT}" ]; then echo -e "${ggcLightRed}No version information found ($GGCOMAPP).  Exiting.${ggcNC}" >&2; exit 1; fi
+
+echo "${OUTPUT}"

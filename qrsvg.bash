@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - Encode QR to SVG v201505201148
+GGCOM - Bash - Utils - Encode QR to SVG v201508012114
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/qrsvg
 
@@ -59,9 +59,9 @@ echo `str_repeat - 80`
 
 #------------------------------ Support Programs Exist?
 
-hash qrencode 2>/dev/null || { echo -e "${ggcLightRed}qrencode is not installed.  Aborting.${ggcNC}" >&2; exit 1; }
-hash convert 2>/dev/null || { echo -e "${ggcLightRed}convert is not installed.  Aborting.${ggcNC}" >&2; exit 1; }
-hash potrace 2>/dev/null || { echo -e "${ggcLightRed}potrace is not installed.  Aborting.${ggcNC}" >&2; exit 1; }
+hash qrencode 2>/dev/null || { echo -e "${ggcLightRed}qrencode is not installed.  Exiting.${ggcNC}" >&2; exit 1; }
+hash convert 2>/dev/null || { echo -e "${ggcLightRed}convert is not installed.  Exiting.${ggcNC}" >&2; exit 1; }
+hash potrace 2>/dev/null || { echo -e "${ggcLightRed}potrace is not installed.  Exiting.${ggcNC}" >&2; exit 1; }
 
 #------------------------------/Support Programs Exist?
 

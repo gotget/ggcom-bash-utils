@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 : <<'!COMMENT'
 
-GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201507060458
+GGCOM - Bash - Utils - FMDMS (File Mtime Directory Md5 Synchronization) v201508012114
 Louis T. Getterman IV (@LTGIV)
 www.GotGetLLC.com | www.opensour.cc/ggcom/fmdms
 
@@ -532,7 +532,7 @@ while :; do
 	fi
 
 	# Changes within DIFF seconds have occurred.
-	touch -d "-${DIFF} seconds" "$FMDMSSYNCTIME"
+	touch -t `python -c "import datetime; print( ( datetime.datetime.now() - datetime.timedelta(seconds=$DIFF) ).strftime('%Y%m%d%H%M.%S') )"` "$FMDMSSYNCTIME"
 	TMPCHANGES=`find "$ansrSrc" -type f -newer "$FMDMSSYNCTIME"`
 
 	if [ ! -z "$TMPCHANGES" ] || [ "$TRIGGERSYNC" == true ]; then
